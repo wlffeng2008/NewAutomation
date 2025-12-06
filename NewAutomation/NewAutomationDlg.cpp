@@ -184,35 +184,61 @@ void CNewAutomationDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	if (nIDEvent == 1 && controller)
 	{
-		int nAxis = 0;
-
-		Automation1StatusConfig statusConfig;
-		Automation1_StatusConfig_Create(&statusConfig);
-
-		Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
-		Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
-		Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
-
-		double result[3];
-		if (!Automation1_Status_GetResults(controller, statusConfig, result, 3))
 		{
+			int nAxis = 0;
+			Automation1StatusConfig statusConfig;
+			Automation1_StatusConfig_Create(&statusConfig);
+
+			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
+			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
+			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
+
+			double result[3];
+			if (Automation1_Status_GetResults(controller, statusConfig, result, 3))
+			{
+				SetDlgItemFloat(IDC_EDIT_POSX, result[0]);
+
+				bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
+				printf("Enabled: %s\n", isEnabled ? "true" : "false");
+
+
+				bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
+				printf("Homed: %s\n", isHomed ? "true" : "false");
+
+				bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
+				bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
+				printf("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
+			}
+			Automation1_StatusConfig_Destroy(statusConfig);
 		}
-		CString strVal;
-		strVal.Format(_T("%f"), result[0]);
-		SetDlgItemText(IDC_STATIC_POS, strVal);
 
-		bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
-		printf("Enabled: %s\n", isEnabled ? "true" : "false");
+		{
+			int nAxis = 1;
+			Automation1StatusConfig statusConfig;
+			Automation1_StatusConfig_Create(&statusConfig);
+
+			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
+			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
+			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
+
+			double result[3];
+			if (Automation1_Status_GetResults(controller, statusConfig, result, 3))
+			{
+				SetDlgItemFloat(IDC_EDIT_POSY, result[0]);
+
+				bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
+				printf("Enabled: %s\n", isEnabled ? "true" : "false");
 
 
-		bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
-		printf("Homed: %s\n", isHomed ? "true" : "false");
+				bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
+				printf("Homed: %s\n", isHomed ? "true" : "false");
 
-		bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
-		bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
-		printf("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
-
-		Automation1_StatusConfig_Destroy(statusConfig);
+				bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
+				bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
+				printf("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
+			}
+			Automation1_StatusConfig_Destroy(statusConfig);
+		}
 	}
 
 	CDialogEx::OnTimer(nIDEvent);
