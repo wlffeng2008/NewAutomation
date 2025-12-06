@@ -36,11 +36,7 @@
 
 #include <afxsock.h>            // MFC socket extensions
 
-
-
-
-
-
+#include "MyGenMFCLib.h"
 
 #ifdef _UNICODE
 #if defined _M_IX86

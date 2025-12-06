@@ -73,6 +73,14 @@ END_MESSAGE_MAP()
 
 // CNewAutomationDlg message handlers
 
+void CNewAutomationDlg::SaveLoadSetting(BOOL bToSave)
+{
+	CIniAX Set(_T("Automation.ini"),_T("Config"));
+	SetDlgItemText(IDC_EDIT_USER,Set.GetString(_T("Account"), _T("Admin")));
+	SetDlgItemText(IDC_EDIT_PWORD,Set.GetString(_T("PWord"), _T("123")));
+	SetDlgItemText(IDC_EDIT_SPEEDX,Set.GetString(_T("SpeedX"), _T("50")));
+}
+
 BOOL CNewAutomationDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
@@ -97,12 +105,9 @@ BOOL CNewAutomationDlg::OnInitDialog()
 		}
 	}
 
-	// Set the icon for this dialog.  The framework does this automatically
-	//  when the application's main window is not a dialog
 	SetIcon(m_hIcon, TRUE);			// Set big icon
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
-	// TODO: Add extra initialization here
 	int v0, v1, v2;
 	Automation1_GetApiVersion(&v0, &v1, &v2);
 	
@@ -110,6 +115,18 @@ BOOL CNewAutomationDlg::OnInitDialog()
 	strTxt.Format(_T("AeroTech Automation: V%d.%d.%d"), v0, v1, v2);
 	SetWindowText(strTxt);
 	SetTimer(1, 20, nullptr);
+
+	SaveLoadSetting(false);
+
+	SetSpecialID(IDC_CHECK_AUTOSTART, IDC_CHECK_SETTOP);
+	SetDlgItemFloat(IDC_EDIT_POSX, 0);
+	SetDlgItemFont(IDC_STATIC_STATUS, 16, 700);
+	SetDlgItemFont(IDC_STATIC_RUNING, 16, 700);
+	SetDlgItemColor(IDC_STATIC_ALARMX,-1,RGB(0,255,0));
+	SetDlgItemColor(IDC_STATIC_ALARMY,-1,RGB(0,255,0));
+	SetDlgItemColor(IDC_STATIC_STATUS, 255);
+	SetDlgItemColor(IDC_STATIC_RUNING, 255);
+
 	return TRUE;  
 }
 
@@ -167,9 +184,11 @@ void CNewAutomationDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	if (nIDEvent == 1 && controller)
 	{
-		int nAxis = GetDlgItemInt(IDC_EDIT_AXIS);
+		int nAxis = 0;
+
 		Automation1StatusConfig statusConfig;
 		Automation1_StatusConfig_Create(&statusConfig);
+
 		Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
 		Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
 		Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
@@ -205,53 +224,59 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 	switch (wParam)
 	{
 	case IDC_CHECK_CONNECT:
-	CheckDlgButton(IDC_CHECK_RUN, FALSE);
-	if(IsDlgButtonChecked(IDC_CHECK_CONNECT))
-	{
-		BOOL bRet = Automation1_ConnectWithHost("169.254.8.208",&controller);
-		SetDlgItemText(IDC_STATIC_STATUS, bRet ? _T("已连接") :  _T("未连接"));
-		if (bRet)
+		CheckDlgButton(IDC_CHECK_RUN, FALSE);
+		if(IsDlgButtonChecked(IDC_CHECK_CONNECT))
 		{
-			bRet = Automation1_Controller_Start(controller);
-			CheckDlgButton(IDC_CHECK_RUN, TRUE);
-			nAxis = 0;
-			Automation1_Command_Enable(controller, 1, &nAxis, 1);
-			nAxis = 1;
-			Automation1_Command_Enable(controller, 1, &nAxis, 1);
-			SetDlgItemText(IDC_STATIC_RUNING, _T("正在运行"));
+			BOOL bRet = Automation1_ConnectWithHost("169.254.8.208",&controller);
+			if (bRet)
+			{
+				bRet = Automation1_Controller_Start(controller);
+				CheckDlgButton(IDC_CHECK_RUN, TRUE);
+				nAxis = 0;
+				Automation1_Command_Enable(controller, 1, &nAxis, 1);
+				nAxis = 1;
+				Automation1_Command_Enable(controller, 1, &nAxis, 1);
+			}
+			SetDlgItemText(IDC_STATIC_STATUS, bRet ? _T("已连接") :  _T("未连接"));
 		}
-	}
-	else
-	{
-		if (controller)
+		else
 		{
-			Automation1_Controller_Stop(controller);
-			Automation1_Disconnect(controller);
-			controller = nullptr;
+			if (controller)
+			{
+				Automation1_Controller_Stop(controller);
+				Automation1_Disconnect(controller);
+				controller = nullptr;
+			}
+			SetDlgItemText(IDC_STATIC_STATUS, _T("未连接"));
+			SetDlgItemColor(IDC_STATIC_STATUS, RGB(0, 255, 0) );
 		}
-		SetDlgItemText(IDC_STATIC_STATUS, _T("未连接"));
-		SetDlgItemText(IDC_STATIC_RUNING, _T("已停止"));
-	}
+		SendCmdMsg(IDC_CHECK_RUN);
 		break;
 
 	case IDC_CHECK_RUN:
-	if(controller)
 	{
 		BOOL bIsRun = IsDlgButtonChecked(IDC_CHECK_RUN);
-		if (bIsRun)
-			Automation1_Controller_Start(controller);
+		if(controller)
+		{
+			if (bIsRun)
+				Automation1_Controller_Start(controller);
+			else
+				Automation1_Controller_Stop(controller);
+		}
 		else
-			Automation1_Controller_Stop(controller);
+		{
+			bIsRun = false;
+		}
 
-		SetDlgItemText(IDC_STATIC_RUNING, bIsRun ? _T("正在运行") : _T("已停止"));
-
+		SetDlgItemText(IDC_STATIC_RUNING, bIsRun ? _T("正在运行") : _T("未运行"));
+		SetDlgItemColor(IDC_STATIC_RUNING, bIsRun ? RGB(0,255,0) : RGB(255, 0, 0));
 	}
 		break;
 	case IDC_BUTTON_HOME:
 		if (controller)
-	{
+		{
 			Automation1_Command_Home(controller, 1, &nAxis, 1);
-	}
+		}
 	default:
 		break;
 	}
@@ -262,27 +287,49 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 
 BOOL CNewAutomationDlg::PreTranslateMessage(MSG* pMsg)
 {
-	int nAxis = GetDlgItemInt(IDC_EDIT_AXIS);
-	double speed = 50;
+	int nAxis = 0;
+	double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
 
 	if (pMsg->message == WM_LBUTTONDOWN)
 	{
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOG2)->GetSafeHwnd())
+		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX1)->GetSafeHwnd())
 		{
 			Automation1_Command_MoveFreerun(controller,1, &nAxis,1,&speed,1);
 		}
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOG1)->GetSafeHwnd())
+
+		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX2)->GetSafeHwnd())
 		{
-			speed = -50;
+			speed *= -1;
+			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
+		}
+
+		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY1)->GetSafeHwnd())
+		{
+			nAxis = 1;
+			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
+		}
+
+		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY2)->GetSafeHwnd())
+		{
+			nAxis = 1;
+			speed *= -1;
 			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
 		}
 	}
 
 	if (pMsg->message == WM_LBUTTONUP)
 	{
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOG2)->GetSafeHwnd() || pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOG1)->GetSafeHwnd())
+		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX2)->GetSafeHwnd() ||
+			pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX1)->GetSafeHwnd())
 		{
-			Automation1_Command_MoveFreerunStop(controller, 1, &nAxis,1);
+			Automation1_Command_MoveFreerunStop(controller, 1, &nAxis, 1);
+		}
+
+		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY2)->GetSafeHwnd() ||
+			pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY1)->GetSafeHwnd())
+		{
+			nAxis = 1;
+			Automation1_Command_MoveFreerunStop(controller, 1, &nAxis, 1);
 		}
 	}
 	return CDialogEx::PreTranslateMessage(pMsg);

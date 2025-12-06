@@ -18,6 +18,8 @@ class CNewAutomationDlg : public CDialogEx
 public:
 	CNewAutomationDlg(CWnd* pParent = NULL);	// standard constructor
 
+	void SaveLoadSetting(BOOL bToSave=false);
+
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_NEWAUTOMATION_DIALOG };
