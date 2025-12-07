@@ -7,9 +7,9 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#ifndef ULONG_PTR
-typedef DWORD ULONG_PTR ;
-#endif
+//#ifndef ULONG_PTR
+//using ULONG_PTR = DWORD ;
+//#endif
 
 #include "Base64Code.h"
 #include "DirDialog.h"
