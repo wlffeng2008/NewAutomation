@@ -68,6 +68,7 @@ BEGIN_MESSAGE_MAP(CNewAutomationDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_WM_TIMER()
+	ON_BN_CLICKED(IDC_BUTTON_JOGX2, &CNewAutomationDlg::OnBnClickedButtonJogx2)
 END_MESSAGE_MAP()
 
 
@@ -78,7 +79,8 @@ void CNewAutomationDlg::SaveLoadSetting(BOOL bToSave)
 	CIniAX Set(_T("Automation.ini"),_T("Config"));
 	SetDlgItemText(IDC_EDIT_USER,Set.GetString(_T("Account"), _T("Admin")));
 	SetDlgItemText(IDC_EDIT_PWORD,Set.GetString(_T("PWord"), _T("123")));
-	SetDlgItemText(IDC_EDIT_SPEEDX,Set.GetString(_T("SpeedX"), _T("50")));
+	SetDlgItemText(IDC_EDIT_SPEEDX, Set.GetString(_T("SpeedX"), _T("50")));
+	SetDlgItemText(IDC_EDIT_SPEEDY, Set.GetString(_T("SpeedY"), _T("80")));
 }
 
 BOOL CNewAutomationDlg::OnInitDialog()
@@ -253,7 +255,11 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 		CheckDlgButton(IDC_CHECK_RUN, FALSE);
 		if(IsDlgButtonChecked(IDC_CHECK_CONNECT))
 		{
-			BOOL bRet = Automation1_ConnectWithHost("169.254.8.208",&controller);
+			CString strUser;
+			CString strPWd;
+			GetDlgItemText(IDC_EDIT_USER, strUser);
+			GetDlgItemText(IDC_EDIT_PWORD, strPWd);
+			BOOL bRet = Automation1_ConnectWithHostAndUser("169.254.8.208",CW2A(strUser),CW2A(strPWd),&controller);
 			if (bRet)
 			{
 				bRet = Automation1_Controller_Start(controller);
@@ -263,7 +269,8 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 				nAxis = 1;
 				Automation1_Command_Enable(controller, 1, &nAxis, 1);
 			}
-			SetDlgItemText(IDC_STATIC_STATUS, bRet ? _T("已连接") :  _T("未连接"));
+			SetDlgItemText(IDC_STATIC_STATUS, bRet ? _T("已连接") : _T("未连接"));
+			SetDlgItemColor(IDC_STATIC_STATUS, RGB(0, 255, 0));
 		}
 		else
 		{
@@ -274,7 +281,7 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 				controller = nullptr;
 			}
 			SetDlgItemText(IDC_STATIC_STATUS, _T("未连接"));
-			SetDlgItemColor(IDC_STATIC_STATUS, RGB(0, 255, 0) );
+			SetDlgItemColor(IDC_STATIC_STATUS, RGB(255,0,  0) );
 		}
 		SendCmdMsg(IDC_CHECK_RUN);
 		break;
@@ -314,17 +321,18 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 BOOL CNewAutomationDlg::PreTranslateMessage(MSG* pMsg)
 {
 	int nAxis = 0;
-	double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
 
 	if (pMsg->message == WM_LBUTTONDOWN)
 	{
 		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX1)->GetSafeHwnd())
 		{
+			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
 			Automation1_Command_MoveFreerun(controller,1, &nAxis,1,&speed,1);
 		}
 
 		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX2)->GetSafeHwnd())
 		{
+			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
 			speed *= -1;
 			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
 		}
@@ -332,11 +340,13 @@ BOOL CNewAutomationDlg::PreTranslateMessage(MSG* pMsg)
 		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY1)->GetSafeHwnd())
 		{
 			nAxis = 1;
+			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDY);
 			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
 		}
 
 		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY2)->GetSafeHwnd())
 		{
+			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDY);
 			nAxis = 1;
 			speed *= -1;
 			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
@@ -359,4 +369,9 @@ BOOL CNewAutomationDlg::PreTranslateMessage(MSG* pMsg)
 		}
 	}
 	return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+void CNewAutomationDlg::OnBnClickedButtonJogx2()
+{
+	// TODO: Add your control notification handler code here
 }
