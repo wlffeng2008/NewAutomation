@@ -11,6 +11,15 @@
 #include <ctype.h>
 #include "Automation1.h"
 
+
+#include "SubDlgMain.h"
+#include "SubDlgMaterial.h"
+#include "SubDlgProduct.h"
+#include "SubDlgVision.h"
+#include "SubDlgCalibration.h"
+#include "SubDlgConfig.h"
+#include "SubDlgWorkinfo.h"
+
 // CNewAutomationDlg dialog
 class CNewAutomationDlg : public CDialogEx
 {
@@ -18,17 +27,25 @@ class CNewAutomationDlg : public CDialogEx
 public:
 	CNewAutomationDlg(CWnd* pParent = NULL);	// standard constructor
 
-	void SaveLoadSetting(BOOL bToSave=false);
+
+	CSubDlgMain *m_pDlgMn = nullptr;
+	CSubDlgMaterial *m_pDlgMt = nullptr;
+	CSubDlgProduct *m_pDlgPr= nullptr;
+	CSubDlgVision *m_pDlgVi = nullptr;
+	CSubDlgCalibration *m_pDlgCl = nullptr;
+	CSubDlgConfig *m_pDlgCf = nullptr;
+	CSubDlgWorkinfo *m_pDlgWi = nullptr;
+
+	void ShowSubDlg(int nIndex=0);
 
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_NEWAUTOMATION_DIALOG };
 #endif
 
-	protected:
+protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
-	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	virtual void OnTimer(UINT_PTR nIDEvent);
 
 // Implementation
@@ -42,6 +59,4 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 
-public:
-	afx_msg void OnBnClickedButtonJogx2();
 };

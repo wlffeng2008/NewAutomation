@@ -13,7 +13,6 @@
 #pragma comment(lib,"Automation1C.lib")
 #endif
 
-Automation1Controller controller = NULL;
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -73,28 +72,16 @@ BEGIN_MESSAGE_MAP(CNewAutomationDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_WM_TIMER()
-	ON_BN_CLICKED(IDC_BUTTON_JOGX2, &CNewAutomationDlg::OnBnClickedButtonJogx2)
 END_MESSAGE_MAP()
 
 
 // CNewAutomationDlg message handlers
 
-void CNewAutomationDlg::SaveLoadSetting(BOOL bToSave)
-{
-	CIniAX Set(_T("Automation.ini"),_T("Config"));
-	SetDlgItemText(IDC_EDIT_USER,Set.GetString(_T("Account"), _T("Admin")));
-	SetDlgItemText(IDC_EDIT_PWORD,Set.GetString(_T("PWord"), _T("123")));
-	SetDlgItemText(IDC_EDIT_SPEEDX, Set.GetString(_T("SpeedX"), _T("50")));
-	SetDlgItemText(IDC_EDIT_SPEEDY, Set.GetString(_T("SpeedY"), _T("80")));
-}
 
 BOOL CNewAutomationDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	// Add "About..." menu item to system menu.
-
-	// IDM_ABOUTBOX must be in the system command range.
 	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
 	ASSERT(IDM_ABOUTBOX < 0xF000);
 
@@ -121,20 +108,61 @@ BOOL CNewAutomationDlg::OnInitDialog()
 	CString strTxt;
 	strTxt.Format(_T("AeroTech Automation: V%d.%d.%d"), v0, v1, v2);
 	SetWindowText(strTxt);
-	SetTimer(1, 20, nullptr);
 
-	SaveLoadSetting(false);
+	m_pDlgMn = new CSubDlgMain();
+	m_pDlgMt = new CSubDlgMaterial();
+	m_pDlgPr = new CSubDlgProduct();
+	m_pDlgVi = new CSubDlgVision();
+	m_pDlgCl = new CSubDlgCalibration ();
+	m_pDlgCf = new CSubDlgConfig();
+	m_pDlgWi = new CSubDlgWorkinfo();
 
-	SetSpecialID(IDC_CHECK_AUTOSTART, IDC_CHECK_SETTOP);
-	SetDlgItemFloat(IDC_EDIT_POSX, 0);
-	SetDlgItemFont(IDC_STATIC_STATUS, 16, 700);
-	SetDlgItemFont(IDC_STATIC_RUNING, 16, 700);
-	SetDlgItemColor(IDC_STATIC_ALARMX,-1,RGB(0,255,0));
-	SetDlgItemColor(IDC_STATIC_ALARMY,-1,RGB(0,255,0));
-	SetDlgItemColor(IDC_STATIC_STATUS, 255);
-	SetDlgItemColor(IDC_STATIC_RUNING, 255);
+	m_pDlgMn->Create(this);
+	m_pDlgPr->Create(this);
+	m_pDlgMt->Create(this);
+	m_pDlgVi->Create(this);
+	m_pDlgCl->Create(this);
+	m_pDlgCf->Create(this);
+	m_pDlgWi->Create(this);
+
+	SetDlgItemPos(m_pDlgMn,0,30);
+
+	SetDlgItemPos(m_pDlgPr, 0, 50);
+	SetDlgItemPos(m_pDlgMt, 0, 50);
+	SetDlgItemPos(m_pDlgVi, 0, 50);
+	SetDlgItemPos(m_pDlgCl, 0, 50);
+	SetDlgItemPos(m_pDlgCf, 0, 50);
+	SetDlgItemPos(m_pDlgWi, 0, 50);
 
 	return TRUE;  
+}
+
+void CNewAutomationDlg::ShowSubDlg(int nIndex)
+{
+
+	CMyDialog *pDlgs[] =
+	{
+		m_pDlgMn,
+		m_pDlgPr,
+		m_pDlgMt,
+		m_pDlgVi,
+		m_pDlgCl,
+		m_pDlgCf,
+		m_pDlgWi
+	};
+
+	UINT nBtns[] = { IDC_BUTTON1,IDC_BUTTON2,IDC_BUTTON3,IDC_BUTTON4, IDC_BUTTON5,IDC_BUTTON6,IDC_BUTTON7 };
+	pDlgs[nIndex]->Show();
+	for (int i = 0; i < 7; i++)
+	{
+		pDlgs[i]->Show(false);
+		GetMyButton(nBtns[i])->SetHold(false);
+	}
+	pDlgs[nIndex]->Show();
+	GetMyButton(nBtns[nIndex])->SetHold(TRUE);
+
+
+
 }
 
 void CNewAutomationDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -189,64 +217,6 @@ HCURSOR CNewAutomationDlg::OnQueryDragIcon()
 
 void CNewAutomationDlg::OnTimer(UINT_PTR nIDEvent)
 {
-	if (nIDEvent == 1 && controller)
-	{
-		{
-			int nAxis = 0;
-			Automation1StatusConfig statusConfig;
-			Automation1_StatusConfig_Create(&statusConfig);
-
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
-
-			double result[3];
-			if (Automation1_Status_GetResults(controller, statusConfig, result, 3))
-			{
-				SetDlgItemFloat(IDC_EDIT_POSX, result[0]);
-
-				bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
-				printf("Enabled: %s\n", isEnabled ? "true" : "false");
-
-
-				bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
-				printf("Homed: %s\n", isHomed ? "true" : "false");
-
-				bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
-				bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
-				printf("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
-			}
-			Automation1_StatusConfig_Destroy(statusConfig);
-		}
-
-		{
-			int nAxis = 1;
-			Automation1StatusConfig statusConfig;
-			Automation1_StatusConfig_Create(&statusConfig);
-
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
-
-			double result[3];
-			if (Automation1_Status_GetResults(controller, statusConfig, result, 3))
-			{
-				SetDlgItemFloat(IDC_EDIT_POSY, result[0]);
-
-				bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
-				printf("Enabled: %s\n", isEnabled ? "true" : "false");
-
-
-				bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
-				printf("Homed: %s\n", isHomed ? "true" : "false");
-
-				bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
-				bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
-				printf("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
-			}
-			Automation1_StatusConfig_Destroy(statusConfig);
-		}
-	}
 
 	CDialogEx::OnTimer(nIDEvent);
 }
@@ -256,96 +226,13 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 	int nAxis = 0;
 	switch (wParam)
 	{
-	case IDC_CHECK_CONNECT:
-		CheckDlgButton(IDC_CHECK_RUN, FALSE);
-		if(IsDlgButtonChecked(IDC_CHECK_CONNECT))
-		{
-			CString strUser;
-			CString strPWd;
-			GetDlgItemText(IDC_EDIT_USER, strUser);
-			GetDlgItemText(IDC_EDIT_PWORD, strPWd);
-			BOOL bRet = Automation1_ConnectWithHostAndUser("169.254.8.208",CW2A(strUser),CW2A(strPWd),&controller);
-			if (bRet)
-			{
-				bRet = Automation1_Controller_Start(controller);
-				CheckDlgButton(IDC_CHECK_RUN, TRUE);
-				nAxis = 0;
-				//Automation1_Command_Enable(controller, 1, &nAxis, 1);
-				nAxis = 1;
-				//Automation1_Command_Enable(controller, 1, &nAxis, 1);
-			}
-			SetDlgItemText(IDC_STATIC_STATUS, bRet ? _T("已连接") : _T("未连接"));
-			SetDlgItemColor(IDC_STATIC_STATUS, RGB(0, 255, 0));
-		}
-		else
-		{
-			if (controller)
-			{
-				Automation1_Controller_Stop(controller);
-				Automation1_Disconnect(controller);
-				controller = nullptr;
-			}
-			SetDlgItemText(IDC_STATIC_STATUS, _T("未连接"));
-			SetDlgItemColor(IDC_STATIC_STATUS, RGB(255,0,  0) );
-		}
-		SendCmdMsg(IDC_CHECK_RUN);
-		break;
-
-	case IDC_CHECK_RUN:
-	{
-		BOOL bIsRun = IsDlgButtonChecked(IDC_CHECK_RUN);
-		if(controller)
-		{
-			if (bIsRun)
-				Automation1_Controller_Start(controller);
-			else
-				Automation1_Controller_Stop(controller);
-		}
-		else
-		{
-			bIsRun = false;
-		}
-
-		SetDlgItemText(IDC_STATIC_RUNING, bIsRun ? _T("正在运行") : _T("未运行"));
-		SetDlgItemColor(IDC_STATIC_RUNING, bIsRun ? RGB(0,255,0) : RGB(255, 0, 0));
-	}
-		break;
-
-	case IDC_BUTTON_HOMEX:
-		if (controller)
-		{
-			Automation1_Command_HomeAsync(controller, 1, &nAxis, 1);
-		}
-		break;
-
-	case IDC_BUTTON_HOMEY:
-		if (controller)
-		{
-			nAxis = 1;
-			Automation1_Command_HomeAsync(controller, 1, &nAxis, 1);
-		}
-		break;
-
-	case IDC_CHECKENABLEX:
-		if (controller)
-		{
-			if(IsDlgButtonChecked(IDC_BUTTON_HOMEX))
-				Automation1_Command_Enable(controller, 1, &nAxis, 1);
-			else
-				Automation1_Command_Disable(controller, &nAxis, 1);
-		}
-		break;
-
-	case IDC_CHECKENABLEY:
-		if (controller)
-		{
-			nAxis = 1;
-			if(IDC_CHECKENABLEY)
-				Automation1_Command_Enable(controller, 1, &nAxis, 1);
-			else
-				Automation1_Command_Disable(controller, &nAxis, 1);
-		}
-		break;
+	case IDC_BUTTON1: ShowSubDlg(0); break;
+	case IDC_BUTTON2: ShowSubDlg(1); break;
+	case IDC_BUTTON3: ShowSubDlg(2); break;
+	case IDC_BUTTON4: ShowSubDlg(3); break;
+	case IDC_BUTTON5: ShowSubDlg(4); break;
+	case IDC_BUTTON6: ShowSubDlg(5); break;
+	case IDC_BUTTON7: ShowSubDlg(6); break;
 	default:
 		break;
 	}
@@ -354,60 +241,3 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 	return CDialogEx::OnCommand(wParam, lParam);
 }
 
-BOOL CNewAutomationDlg::PreTranslateMessage(MSG* pMsg)
-{
-	int nAxis = 0;
-
-	if (pMsg->message == WM_LBUTTONDOWN)
-	{
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX1)->GetSafeHwnd())
-		{
-			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
-			speed *= -1;
-			Automation1_Command_MoveFreerun(controller,1, &nAxis,1,&speed,1);
-		}
-
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX2)->GetSafeHwnd())
-		{
-			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
-			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
-		}
-
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY1)->GetSafeHwnd())
-		{
-			nAxis = 1;
-			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDY);
-			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
-		}
-
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY2)->GetSafeHwnd())
-		{
-			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDY);
-			nAxis = 1;
-			speed *= -1;
-			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
-		}
-	}
-
-	if (pMsg->message == WM_LBUTTONUP)
-	{
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX2)->GetSafeHwnd() ||
-			pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX1)->GetSafeHwnd())
-		{
-			Automation1_Command_MoveFreerunStop(controller, 1, &nAxis, 1);
-		}
-
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY2)->GetSafeHwnd() ||
-			pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY1)->GetSafeHwnd())
-		{
-			nAxis = 1;
-			Automation1_Command_MoveFreerunStop(controller, 1, &nAxis, 1);
-		}
-	}
-	return CDialogEx::PreTranslateMessage(pMsg);
-}
-
-void CNewAutomationDlg::OnBnClickedButtonJogx2()
-{
-	// TODO: Add your control notification handler code here
-}
