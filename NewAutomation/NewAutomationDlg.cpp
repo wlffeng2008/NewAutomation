@@ -248,7 +248,7 @@ void CNewAutomationDlg::OnTimer(UINT_PTR nIDEvent)
 
 BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 {
-	int nAxis = GetDlgItemInt(IDC_EDIT_AXIS);
+	int nAxis = 0;
 	switch (wParam)
 	{
 	case IDC_CHECK_CONNECT:
@@ -265,9 +265,9 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 				bRet = Automation1_Controller_Start(controller);
 				CheckDlgButton(IDC_CHECK_RUN, TRUE);
 				nAxis = 0;
-				Automation1_Command_Enable(controller, 1, &nAxis, 1);
+				//Automation1_Command_Enable(controller, 1, &nAxis, 1);
 				nAxis = 1;
-				Automation1_Command_Enable(controller, 1, &nAxis, 1);
+				//Automation1_Command_Enable(controller, 1, &nAxis, 1);
 			}
 			SetDlgItemText(IDC_STATIC_STATUS, bRet ? _T("已连接") : _T("未连接"));
 			SetDlgItemColor(IDC_STATIC_STATUS, RGB(0, 255, 0));
@@ -305,11 +305,42 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 		SetDlgItemColor(IDC_STATIC_RUNING, bIsRun ? RGB(0,255,0) : RGB(255, 0, 0));
 	}
 		break;
-	case IDC_BUTTON_HOME:
+
+	case IDC_BUTTON_HOMEX:
 		if (controller)
 		{
-			Automation1_Command_Home(controller, 1, &nAxis, 1);
+			Automation1_Command_HomeAsync(controller, 1, &nAxis, 1);
 		}
+		break;
+
+	case IDC_BUTTON_HOMEY:
+		if (controller)
+		{
+			nAxis = 1;
+			Automation1_Command_HomeAsync(controller, 1, &nAxis, 1);
+		}
+		break;
+
+	case IDC_CHECKENABLEX:
+		if (controller)
+		{
+			if(IsDlgButtonChecked(IDC_BUTTON_HOMEX))
+				Automation1_Command_Enable(controller, 1, &nAxis, 1);
+			else
+				Automation1_Command_Disable(controller, &nAxis, 1);
+		}
+		break;
+
+	case IDC_CHECKENABLEY:
+		if (controller)
+		{
+			nAxis = 1;
+			if(IDC_CHECKENABLEY)
+				Automation1_Command_Enable(controller, 1, &nAxis, 1);
+			else
+				Automation1_Command_Disable(controller, &nAxis, 1);
+		}
+		break;
 	default:
 		break;
 	}
@@ -327,13 +358,13 @@ BOOL CNewAutomationDlg::PreTranslateMessage(MSG* pMsg)
 		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX1)->GetSafeHwnd())
 		{
 			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
+			speed *= -1;
 			Automation1_Command_MoveFreerun(controller,1, &nAxis,1,&speed,1);
 		}
 
 		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX2)->GetSafeHwnd())
 		{
 			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
-			speed *= -1;
 			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
 		}
 
