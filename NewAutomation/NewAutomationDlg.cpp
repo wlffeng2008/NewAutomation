@@ -7,7 +7,12 @@
 #include "NewAutomationDlg.h"
 #include "afxdialogex.h"
 
+#if defined _M_X64
+#pragma comment(lib,"Automation1C64.lib")
+#else
 #pragma comment(lib,"Automation1C.lib")
+#endif
+
 Automation1Controller controller = NULL;
 
 #ifdef _DEBUG
