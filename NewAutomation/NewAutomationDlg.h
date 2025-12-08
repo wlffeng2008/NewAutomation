@@ -9,7 +9,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
-#include "Automation1.h"
 
 
 #include "SubDlgMain.h"
@@ -26,7 +25,6 @@ class CNewAutomationDlg : public CDialogEx
 // Construction
 public:
 	CNewAutomationDlg(CWnd* pParent = NULL);	// standard constructor
-
 
 	CSubDlgMain *m_pDlgMn = nullptr;
 	CSubDlgMaterial *m_pDlgMt = nullptr;

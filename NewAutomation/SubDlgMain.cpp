@@ -63,6 +63,18 @@ BOOL CSubDlgMain::OnInitDialog()
 	SetDlgItemColor(IDC_STATIC_ALARMY, -1, RGB(0, 255, 0));
 	SetDlgItemColor(IDC_STATIC_STATUS, 255);
 	SetDlgItemColor(IDC_STATIC_RUNING, 255);
+
+	SetDlgItemFont(IDC_STATIC_LASER1, 20, 700);
+	SetDlgItemFont(IDC_STATIC_LASER2, 20, 700);
+	SetDlgItemColor(IDC_STATIC_LASER1, RGB(255,255,255), RGB(0, 255, 0));
+	SetDlgItemColor(IDC_STATIC_LASER2, RGB(255,255,255), RGB(0, 0, 255));
+
+
+
+	SetDlgItemColor(IDC_STATIC_READ1, RGB(255, 255, 255), RGB(0, 0, 255));
+	SetDlgItemColor(IDC_STATIC_READ2, RGB(255, 255, 255), RGB(0, 0, 255));
+	SetDlgItemColor(IDC_STATIC_READ3, RGB(255, 255, 255), RGB(0, 0, 255));
+
 	return TRUE;
 }
 

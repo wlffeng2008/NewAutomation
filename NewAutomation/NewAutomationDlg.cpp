@@ -7,6 +7,9 @@
 #include "NewAutomationDlg.h"
 #include "afxdialogex.h"
 
+
+#include "Automation1.h"
+
 #if defined _M_X64
 #pragma comment(lib,"Automation1C64.lib")
 #else
@@ -125,8 +128,7 @@ BOOL CNewAutomationDlg::OnInitDialog()
 	m_pDlgCf->Create(this);
 	m_pDlgWi->Create(this);
 
-	SetDlgItemPos(m_pDlgMn,0,30);
-
+	SetDlgItemPos(m_pDlgMn, 0, 50);
 	SetDlgItemPos(m_pDlgPr, 0, 50);
 	SetDlgItemPos(m_pDlgMt, 0, 50);
 	SetDlgItemPos(m_pDlgVi, 0, 50);
@@ -134,12 +136,13 @@ BOOL CNewAutomationDlg::OnInitDialog()
 	SetDlgItemPos(m_pDlgCf, 0, 50);
 	SetDlgItemPos(m_pDlgWi, 0, 50);
 
+	ShowSubDlg(0);
+
 	return TRUE;  
 }
 
 void CNewAutomationDlg::ShowSubDlg(int nIndex)
 {
-
 	CMyDialog *pDlgs[] =
 	{
 		m_pDlgMn,
@@ -151,18 +154,21 @@ void CNewAutomationDlg::ShowSubDlg(int nIndex)
 		m_pDlgWi
 	};
 
-	UINT nBtns[] = { IDC_BUTTON1,IDC_BUTTON2,IDC_BUTTON3,IDC_BUTTON4, IDC_BUTTON5,IDC_BUTTON6,IDC_BUTTON7 };
-	pDlgs[nIndex]->Show();
+	UINT nBtns[] = {
+		IDC_BUTTON1,
+		IDC_BUTTON2,
+		IDC_BUTTON3,
+		IDC_BUTTON4,
+		IDC_BUTTON5,
+		IDC_BUTTON6,
+		IDC_BUTTON7
+	};
+
 	for (int i = 0; i < 7; i++)
 	{
-		pDlgs[i]->Show(false);
-		GetMyButton(nBtns[i])->SetHold(false);
+		pDlgs[i]->Show(nIndex == i);
+		GetMyButton(nBtns[i])->SetHold(nIndex == i);
 	}
-	pDlgs[nIndex]->Show();
-	GetMyButton(nBtns[nIndex])->SetHold(TRUE);
-
-
-
 }
 
 void CNewAutomationDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -223,7 +229,6 @@ void CNewAutomationDlg::OnTimer(UINT_PTR nIDEvent)
 
 BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 {
-	int nAxis = 0;
 	switch (wParam)
 	{
 	case IDC_BUTTON1: ShowSubDlg(0); break;
@@ -236,8 +241,6 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 	default:
 		break;
 	}
-
-
 	return CDialogEx::OnCommand(wParam, lParam);
 }
 
