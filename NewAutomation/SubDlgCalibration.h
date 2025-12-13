@@ -17,7 +17,7 @@ public:
 #endif
 
 protected:
-	BOOL OnInitDialog();
+	virtual BOOL OnInitDialog();
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()

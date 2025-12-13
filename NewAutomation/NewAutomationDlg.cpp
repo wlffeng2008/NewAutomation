@@ -79,8 +79,6 @@ END_MESSAGE_MAP()
 
 
 // CNewAutomationDlg message handlers
-
-
 BOOL CNewAutomationDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
@@ -105,6 +103,8 @@ BOOL CNewAutomationDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// Set big icon
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
+	SetSkinsPath(_T("/images/"));
+
 	int v0, v1, v2;
 	Automation1_GetApiVersion(&v0, &v1, &v2);
 	
@@ -128,16 +128,49 @@ BOOL CNewAutomationDlg::OnInitDialog()
 	m_pDlgCf->Create(this);
 	m_pDlgWi->Create(this);
 
-	SetDlgItemPos(m_pDlgMn, 0, 50);
-	SetDlgItemPos(m_pDlgPr, 0, 50);
-	SetDlgItemPos(m_pDlgMt, 0, 50);
-	SetDlgItemPos(m_pDlgVi, 0, 50);
-	SetDlgItemPos(m_pDlgCl, 0, 50);
-	SetDlgItemPos(m_pDlgCf, 0, 50);
-	SetDlgItemPos(m_pDlgWi, 0, 50);
+	m_pDlgPr->m_pMain = m_pDlgMn;
+
+	CRect rc;
+	GetDlgItem(IDC_STATIC_FRAME)->GetWindowRect(&rc);
+	ScreenToClient(&rc);
+	SetDlgItemPos(m_pDlgMn, 0, rc.top);
+	SetDlgItemPos(m_pDlgPr, 0, rc.top);
+	SetDlgItemPos(m_pDlgMt, 0, rc.top);
+	SetDlgItemPos(m_pDlgVi, 0, rc.top);
+	SetDlgItemPos(m_pDlgCl, 0, rc.top);
+	SetDlgItemPos(m_pDlgCf, 0, rc.top);
+	SetDlgItemPos(m_pDlgWi, 0, rc.top);
+
+	SetDlgItemSize(m_pDlgMn, 1024, 720);
+	SetDlgItemSize(m_pDlgPr, 1024, 720);
+	SetDlgItemSize(m_pDlgMt, 1024, 720);
+	SetDlgItemSize(m_pDlgVi, 1024, 720);
+	SetDlgItemSize(m_pDlgCl, 1024, 720);
+	SetDlgItemSize(m_pDlgCf, 1024, 720);
+	SetDlgItemSize(m_pDlgWi, 1024, 720);
 
 	ShowSubDlg(0);
 
+	SetButtonIcon(IDC_BUTTON1, _T("Icon_1.png"));
+	SetButtonIcon(IDC_BUTTON2, _T("Icon_2.png"));
+	SetButtonIcon(IDC_BUTTON3, _T("Icon_3.png"));
+	SetButtonIcon(IDC_BUTTON4, _T("Icon_4.png"));
+	SetButtonIcon(IDC_BUTTON5, _T("Icon_5.png"));
+	SetButtonIcon(IDC_BUTTON6, _T("Icon_6.png"));
+	SetButtonIcon(IDC_BUTTON7, _T("Icon_7.png"));
+	SetDlgItemFont(IDC_BUTTON1, 16, 700);
+	SetDlgItemFont(IDC_BUTTON2, 16, 700);
+	SetDlgItemFont(IDC_BUTTON3, 16, 700);
+	SetDlgItemFont(IDC_BUTTON4, 16, 700);
+	SetDlgItemFont(IDC_BUTTON5, 16, 700);
+	SetDlgItemFont(IDC_BUTTON6, 16, 700);
+	SetDlgItemFont(IDC_BUTTON7, 16, 700);
+
+	//AddDrawImage(0, 0, _T("Rocket.png"));
+	//SetBKGradColors(1, RGB(255, 0, 0), RGB(0, 255, 0), RGB(0, 0, 255), RGB(240, 240, 0), -1);
+
+	MoveWindow(0,0,1024, 768);
+	CenterWindow();
 	return TRUE;  
 }
 

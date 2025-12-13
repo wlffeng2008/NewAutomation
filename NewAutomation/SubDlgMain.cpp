@@ -6,7 +6,7 @@
 #include "SubDlgMain.h"
 #include "afxdialogex.h"
 
-
+#include "ColorSlider.h"
 #include "Automation1.h"
 
 static Automation1Controller controller = NULL;
@@ -41,10 +41,33 @@ END_MESSAGE_MAP()
 void CSubDlgMain::SaveLoadSetting(BOOL bToSave)
 {
 	CIniAX Set(_T("Automation.ini"), _T("Config"));
-	SetDlgItemText(IDC_EDIT_USER, Set.GetString(_T("Account"), _T("Admin")));
-	SetDlgItemText(IDC_EDIT_PWORD, Set.GetString(_T("PWord"), _T("123")));
-	SetDlgItemText(IDC_EDIT_SPEEDX, Set.GetString(_T("SpeedX"), _T("50")));
-	SetDlgItemText(IDC_EDIT_SPEEDY, Set.GetString(_T("SpeedY"), _T("80")));
+	if (bToSave)
+	{
+		Set.SetString(_T("Account"), GetDlgItemTextEx(IDC_EDIT_USER));
+		Set.SetString(_T("PWord"), GetDlgItemTextEx(IDC_EDIT_PWORD));
+		Set.SetString(_T("SpeedX"), GetDlgItemTextEx(IDC_EDIT_SPEEDX));
+		Set.SetString(_T("SpeedY"), GetDlgItemTextEx(IDC_EDIT_SPEEDY));
+		Set.SetString(_T("ZeroX"), GetDlgItemTextEx(IDC_EDIT_ZEROX));
+		Set.SetString(_T("ZeroY"), GetDlgItemTextEx(IDC_EDIT_ZEROY));
+		Set.SetString(_T("Laser1"), GetDlgItemTextEx(IDC_EDIT_SET1));
+		Set.SetString(_T("Laser2"), GetDlgItemTextEx(IDC_EDIT_SET2));
+		Set.SetString(_T("Laser3"), GetDlgItemTextEx(IDC_EDIT_SET3));
+	}
+	else
+	{
+		SetDlgItemText(IDC_EDIT_USER, Set.GetString(_T("Account"), _T("Admin")));
+		SetDlgItemText(IDC_EDIT_PWORD, Set.GetString(_T("PWord"), _T("123")));
+		SetDlgItemText(IDC_EDIT_SPEEDX, Set.GetString(_T("SpeedX"), _T("50")));
+		SetDlgItemText(IDC_EDIT_SPEEDY, Set.GetString(_T("SpeedY"), _T("80")));
+		SetDlgItemText(IDC_EDIT_ZEROX, Set.GetString(_T("ZeroX"), _T("0")));
+		SetDlgItemText(IDC_EDIT_ZEROY, Set.GetString(_T("ZeroY"), _T("0")));
+		SetSliderPos(IDC_SLIDER1,Set.GetInt(_T("SpeedX"), 50));
+		SetSliderPos(IDC_SLIDER2,Set.GetInt(_T("SpeedY"), 50));
+		SetDlgItemText(IDC_EDIT_SET1, Set.GetString(_T("Laser1"), _T("5")));
+		SetDlgItemText(IDC_EDIT_SET2, Set.GetString(_T("Laser2"), _T("6")));
+		SetDlgItemText(IDC_EDIT_SET3, Set.GetString(_T("Laser3"), _T("7")));
+	}
+
 }
 
 
@@ -53,12 +76,19 @@ BOOL CSubDlgMain::OnInitDialog()
 	CDialogEx::OnInitDialog();
 	SetTimer(1, 20, nullptr);
 
+	SetSliderRange(IDC_SLIDER1,1, 500);
+	SetSliderRange(IDC_SLIDER2,1, 500);
 	SaveLoadSetting(false);
 
 	SetSpecialID(IDC_CHECK_AUTOSTART, IDC_CHECK_SETTOP);
 	SetDlgItemFloat(IDC_EDIT_POSX, 0);
+	SetDlgItemFloat(IDC_EDIT_POSY, 0);
 	SetDlgItemFont(IDC_STATIC_STATUS, 16, 700);
 	SetDlgItemFont(IDC_STATIC_RUNING, 16, 700);
+	SetDlgItemFont(IDC_STATIC_GX, 16, 700);
+	SetDlgItemFont(IDC_STATIC_GY, 16, 700);
+	SetDlgItemFont(IDC_STATIC_CTRL, 16, 700);
+	SetDlgItemFont(IDC_STATIC_LS, 16, 700);
 	SetDlgItemColor(IDC_STATIC_ALARMX, -1, RGB(0, 255, 0));
 	SetDlgItemColor(IDC_STATIC_ALARMY, -1, RGB(0, 255, 0));
 	SetDlgItemColor(IDC_STATIC_STATUS, 255);
@@ -69,11 +99,77 @@ BOOL CSubDlgMain::OnInitDialog()
 	SetDlgItemColor(IDC_STATIC_LASER1, RGB(255,255,255), RGB(0, 255, 0));
 	SetDlgItemColor(IDC_STATIC_LASER2, RGB(255,255,255), RGB(0, 0, 255));
 
-
-
 	SetDlgItemColor(IDC_STATIC_READ1, RGB(255, 255, 255), RGB(0, 0, 255));
 	SetDlgItemColor(IDC_STATIC_READ2, RGB(255, 255, 255), RGB(0, 0, 255));
 	SetDlgItemColor(IDC_STATIC_READ3, RGB(255, 255, 255), RGB(0, 0, 255));
+
+	CLabel *pSTLab = GetMyLabel(IDC_STATIC_ALARMX);
+	pSTLab->SetFontSize(20);
+	pSTLab->SetLabelText(_T("●"));
+	pSTLab->SetTextColor(RGB(0, 255, 0));
+	pSTLab->ModifyStyleEx(SS_SUNKEN,0);
+
+	pSTLab = GetMyLabel(IDC_STATIC_ALARMY);
+	pSTLab->SetFontSize(20);
+	pSTLab->SetLabelText(_T("●"));
+	pSTLab->SetTextColor(RGB(0, 255, 0));
+
+	GetMySliderCtrl(IDC_SLIDER1)->UnsubclassWindow();
+	GetMySliderCtrl(IDC_SLIDER2)->UnsubclassWindow();
+	GetMySliderCtrl(IDC_SLIDER3)->UnsubclassWindow();
+
+	CColorSlider *AX1 = new CColorSlider();
+	AX1->SubclassDlgItem(IDC_SLIDER1,this);
+
+	CColorSlider *AX2 = new CColorSlider();
+	AX2->SubclassDlgItem(IDC_SLIDER2,this);
+	AX2->SetColor(~0, 0xFDFFC3, 0xDCE139, 0xDCE139,~0);
+
+	CColorSlider *AX3 = new CColorSlider();
+	AX3->SubclassDlgItem(IDC_SLIDER3,this);
+	AX3->SetColor(~0, 0xFDFFC3, 0xDCE139, 0xDCE139,~0);
+
+	SetSliderBindItem(IDC_SLIDER1,IDC_EDIT_SPEEDX);
+	SetSliderBindItem(IDC_SLIDER2,IDC_EDIT_SPEEDY);
+	SetSliderBindItem(IDC_SLIDER3,IDC_EDIT_SET1);
+	SetDlgItemWheelValue(IDC_EDIT_SPEEDX);
+	SetDlgItemWheelValue(IDC_EDIT_SPEEDY);
+	SetDlgItemWheelValue(IDC_EDIT_ZEROX);
+	SetDlgItemWheelValue(IDC_EDIT_ZEROY);
+	SetDlgItemWheelValue(IDC_EDIT_POSX);
+	SetDlgItemWheelValue(IDC_EDIT_POSY);
+	SetDlgItemWheelValue(IDC_EDIT_SET1);
+	SetDlgItemWheelValue(IDC_EDIT_SET2);
+	SetDlgItemWheelValue(IDC_EDIT_SET3);
+
+	SetButtonBmp(IDC_BUTTON_JOGX1,_T("left.png"),_T("left.png"));
+	SetButtonBmp(IDC_BUTTON_JOGX2,_T("right.png"),_T("right.png"));
+	SetButtonBmp(IDC_BUTTON_JOGY1,_T("down.png"),_T("down.png"));
+	SetButtonBmp(IDC_BUTTON_JOGY2,_T("up.png"),_T("up.png"));
+
+	SetButtonBmp(IDC_BUTTON_SETZEROX,_T("AddLocation.png"));
+	SetButtonBmp(IDC_BUTTON_SETZEROY,_T("AddLocation.png"));
+	SetButtonBmp(IDC_BUTTON_SETPOSX,_T("goto.png"));
+	SetButtonBmp(IDC_BUTTON_SETPOSY,_T("goto.png"));
+	SetButtonBmp(IDC_BUTTON_HOMEX,_T("home.png"));
+	SetButtonBmp(IDC_BUTTON_HOMEY,_T("home.png"));
+	SetButtonBmp(IDC_BUTTON_GOTOZEROX,_T("zero.png"));
+	SetButtonBmp(IDC_BUTTON_GOTOZEROY,_T("zero.png"));
+	SetButtonBmp(IDC_BUTTON_CLEARALARMX,_T("refresh.png"));
+	SetButtonBmp(IDC_BUTTON_CLEARALARMY,_T("refresh.png"));
+
+	LOGFONT lf;
+	GetFont()->GetLogFont(&lf);
+	_tccpy(lf.lfFaceName, _T("微软雅黑"));
+	lf.lfWeight = 700;
+	lf.lfHeight = -100;
+	static CFont newFont;
+	newFont.CreatePointFontIndirect(&lf);
+	//SetDlgFont(&newFont);
+
+	m_pDlgPSO = new CDlgPSOEdit();
+	m_pDlgPSO->Create(this);
+	m_pDlgPSO->m_pMain = this;
 
 	return TRUE;
 }
@@ -91,22 +187,32 @@ void CSubDlgMain::OnTimer(UINT_PTR nIDEvent)
 			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
 			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
 			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
+			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisFault, 0);
+			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramVelocityFeedback, 0);
 
-			double result[3];
-			if (Automation1_Status_GetResults(controller, statusConfig, result, 3))
+			double result[10];
+			if (Automation1_Status_GetResults(controller, statusConfig, result, 5))
 			{
-				SetDlgItemFloat(IDC_EDIT_POSX, result[0]);
+				SetDlgItemFloat(IDC_STATIC_POSX, result[0],4);
+				SetDlgItemFloat(IDC_STATIC_SPEEDX, result[4],4);
+				m_dbXPos = result[0];
+
+				CLabel *pSTLab = GetMyLabel(IDC_STATIC_ALARMX);
+				if (result[3] > 0)
+					pSTLab->SetTextColor(RGB(255, 0, 0));
+				else
+					pSTLab->SetTextColor(RGB(0, 255, 0));
 
 				bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
-				printf("Enabled: %s\n", isEnabled ? "true" : "false");
+				TRACE("Enabled: %s\n", isEnabled ? "true" : "false");
 
 
 				bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
-				printf("Homed: %s\n", isHomed ? "true" : "false");
+				TRACE("Homed: %s\n", isHomed ? "true" : "false");
 
 				bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
 				bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
-				printf("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
+				TRACE("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
 			}
 			Automation1_StatusConfig_Destroy(statusConfig);
 		}
@@ -119,22 +225,31 @@ void CSubDlgMain::OnTimer(UINT_PTR nIDEvent)
 			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
 			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
 			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
+			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisFault, 0);
+			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramVelocityFeedback, 0);
 
-			double result[3];
-			if (Automation1_Status_GetResults(controller, statusConfig, result, 3))
+			double result[10];
+			if (Automation1_Status_GetResults(controller, statusConfig, result, 5))
 			{
-				SetDlgItemFloat(IDC_EDIT_POSY, result[0]);
+				SetDlgItemFloat(IDC_STATIC_POSY, result[0],4);
+				SetDlgItemFloat(IDC_STATIC_SPEEDY, result[4], 4);
+				m_dbYPos = result[0];
+				CLabel *pSTLab = GetMyLabel(IDC_STATIC_ALARMY);
+				if (result[3] > 0)
+					pSTLab->SetTextColor(RGB(255, 0, 0));
+				else
+					pSTLab->SetTextColor(RGB(0, 255, 0));
 
 				bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
-				printf("Enabled: %s\n", isEnabled ? "true" : "false");
+				TRACE("Enabled: %s\n", isEnabled ? "true" : "false");
 
 
 				bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
-				printf("Homed: %s\n", isHomed ? "true" : "false");
+				TRACE("Homed: %s\n", isHomed ? "true" : "false");
 
 				bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
 				bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
-				printf("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
+				TRACE("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
 			}
 			Automation1_StatusConfig_Destroy(statusConfig);
 		}
@@ -159,15 +274,14 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 			BOOL bRet = Automation1_ConnectWithHostAndUser("169.254.8.208", CW2A(strUser), CW2A(strPWd), &controller);
 			if (bRet)
 			{
-				bRet = Automation1_Controller_Start(controller);
+				Automation1_Controller_Start(controller);
+
 				CheckDlgButton(IDC_CHECK_RUN, TRUE);
-				nAxis = 0;
-				//Automation1_Command_Enable(controller, 1, &nAxis, 1);
-				nAxis = 1;
-				//Automation1_Command_Enable(controller, 1, &nAxis, 1);
+				CheckDlgButton(IDC_CHECKENABLEX, TRUE);
+				CheckDlgButton(IDC_CHECKENABLEY, TRUE);
+				SendCmdMsg(IDC_CHECKENABLEX);
+				SendCmdMsg(IDC_CHECKENABLEY);
 			}
-			SetDlgItemText(IDC_STATIC_STATUS, bRet ? _T("已连接") : _T("未连接"));
-			SetDlgItemColor(IDC_STATIC_STATUS, RGB(0, 255, 0));
 		}
 		else
 		{
@@ -177,10 +291,15 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 				Automation1_Disconnect(controller);
 				controller = nullptr;
 			}
-			SetDlgItemText(IDC_STATIC_STATUS, _T("未连接"));
-			SetDlgItemColor(IDC_STATIC_STATUS, RGB(255, 0, 0));
+			CheckDlgButton(IDC_CHECKENABLEX, false);
+			CheckDlgButton(IDC_CHECKENABLEY, false);
+			CheckDlgButton(IDC_CHECK_RUN, false);
 		}
+		SetDlgItemText(IDC_STATIC_STATUS, controller ? _T("已连接") : _T("未连接"));
+		SetDlgItemColor(IDC_STATIC_STATUS, controller ? RGB(0, 255, 0):RGB(255, 0, 0));
 		SendCmdMsg(IDC_CHECK_RUN);
+		SaveLoadSetting(true);
+
 		break;
 
 	case IDC_CHECK_RUN:
@@ -218,10 +337,24 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 		}
 		break;
 
+	case IDC_BUTTON_CLEARALARMX:
+		if (controller)
+		{
+			Automation1_Command_FaultAcknowledge(controller, 1, &nAxis, 1);
+		}
+		break;
+	case IDC_BUTTON_CLEARALARMY:
+		if (controller)
+		{
+			nAxis = 1;
+			Automation1_Command_FaultAcknowledge(controller, 1, &nAxis, 1);
+		}
+		break;
+
 	case IDC_CHECKENABLEX:
 		if (controller)
 		{
-			if (IsDlgButtonChecked(IDC_BUTTON_HOMEX))
+			if (IsDlgButtonChecked(IDC_CHECKENABLEX))
 				Automation1_Command_Enable(controller, 1, &nAxis, 1);
 			else
 				Automation1_Command_Disable(controller, &nAxis, 1);
@@ -232,69 +365,144 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 		if (controller)
 		{
 			nAxis = 1;
-			if (IDC_CHECKENABLEY)
+			if (IsDlgButtonChecked(IDC_CHECKENABLEY))
 				Automation1_Command_Enable(controller, 1, &nAxis, 1);
 			else
 				Automation1_Command_Disable(controller, &nAxis, 1);
 		}
 		break;
+
+	case IDC_BUTTON_SETPOSX:
+	{
+		double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
+		double pos = GetDlgItemFloat(IDC_EDIT_POSX);
+		Automation1_Command_MoveAbsolute(controller, 1, &nAxis, 1, &pos, 1, &speed, 1);
+	}
+		break;
+
+	case IDC_BUTTON_GOTOZEROX:
+	{
+		double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
+		double pos = GetDlgItemFloat(IDC_EDIT_ZEROX);
+		Automation1_Command_MoveAbsolute(controller, 1, &nAxis, 1, &pos, 1, &speed, 1);
+	}
+		break;
+
+	case IDC_BUTTON_SETPOSY:
+	{
+		nAxis = 1;
+		double speed = GetDlgItemFloat(IDC_EDIT_SPEEDY);
+		double pos = GetDlgItemFloat(IDC_EDIT_POSY);
+		Automation1_Command_MoveAbsolute(controller, 1, &nAxis, 1, &pos, 1, &speed, 1);
+	}
+		break;
+
+	case IDC_BUTTON_GOTOZEROY:
+	{
+		nAxis = 1;
+		double speed = GetDlgItemFloat(IDC_EDIT_SPEEDY);
+		double pos = GetDlgItemFloat(IDC_EDIT_ZEROY);
+		Automation1_Command_MoveAbsolute(controller, 1, &nAxis, 1, &pos, 1, &speed, 1);
+	}
+		break;
+
+	case IDC_BUTTON_SETZEROX:
+	case IDC_BUTTON_SETZEROY:
+		SaveLoadSetting(true);
+		break;
+
+	case IDC_BUTTON_SCRIPT:
+	{
+		CFileDialog dlg(true,_T("*.ascript"));
+		if (dlg.DoModal() == IDOK)
+		{
+			if (MessageBox(CString(_T("确定运行以下脚本吗？\n"))+dlg.GetPathName(), _T("提示"), MB_ICONQUESTION | MB_YESNO) == IDYES)
+			{
+				//Automation1_Files_Delete(controller,"file.ascript");
+				const char *strLoad = "ttx1.ascript";
+				Automation1_Files_Upload(controller,CW2A(dlg.GetPathName()), strLoad);
+				Automation1_Task_ProgramLoad(controller, 1, strLoad);
+				Automation1_Task_ProgramRun(controller, 1, strLoad);
+			}
+		}
+	}
+		break;
+
+	case 9981:
+	{
+		const char *strLoad = "tmp.ascript";
+		CString strFile = GetCurrentPath() + _T("\\tmp.ascript");
+		//Automation1_Files_Delete(controller,"file.ascript");
+		Automation1_Files_Upload(controller, CW2A(strFile), strLoad);
+		Automation1_Task_ProgramLoad(controller, 1, strLoad);
+		Automation1_Task_ProgramRun(controller, 1, strLoad);
+	}
+		return true;
+
+	case IDC_BUTTON_PSO:
+		m_pDlgPSO->CenterWindow((this));
+		m_pDlgPSO->Show();
+		break;
+
 	default:
 		break;
 	}
-
 
 	return CDialogEx::OnCommand(wParam, lParam);
 }
 
 BOOL CSubDlgMain::PreTranslateMessage(MSG* pMsg)
 {
-	int nAxis = 0;
-
-	if (pMsg->message == WM_LBUTTONDOWN)
+	if(controller)
 	{
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX1)->GetSafeHwnd())
+		int nAxis = 0;
+		if (pMsg->message == WM_LBUTTONDOWN)
 		{
-			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
-			speed *= -1;
-			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
+			if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX1)->GetSafeHwnd())
+			{
+				double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX) * -1;
+				Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
+			}
+
+			if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX2)->GetSafeHwnd())
+			{
+				double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
+				Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
+			}
+
+			if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY1)->GetSafeHwnd())
+			{
+				nAxis = 1;
+				double speed = GetDlgItemFloat(IDC_EDIT_SPEEDY) * -1;
+				Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
+			}
+
+			if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY2)->GetSafeHwnd())
+			{
+				nAxis = 1;
+				double speed = GetDlgItemFloat(IDC_EDIT_SPEEDY);
+				Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
+			}
 		}
 
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX2)->GetSafeHwnd())
+		if (pMsg->message == WM_LBUTTONUP)
 		{
-			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDX);
-			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
-		}
+			if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX2)->GetSafeHwnd() ||
+				pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX1)->GetSafeHwnd())
+			{
+				SaveLoadSetting(true);
+				Automation1_Command_MoveFreerunStop(controller, 1, &nAxis, 1);
+			}
 
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY1)->GetSafeHwnd())
-		{
-			nAxis = 1;
-			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDY);
-			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
-		}
-
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY2)->GetSafeHwnd())
-		{
-			double speed = GetDlgItemFloat(IDC_EDIT_SPEEDY);
-			nAxis = 1;
-			speed *= -1;
-			Automation1_Command_MoveFreerun(controller, 1, &nAxis, 1, &speed, 1);
+			if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY2)->GetSafeHwnd() ||
+				pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY1)->GetSafeHwnd())
+			{
+				nAxis = 1;
+				SaveLoadSetting(true);
+				Automation1_Command_MoveFreerunStop(controller, 1, &nAxis, 1);
+			}
 		}
 	}
 
-	if (pMsg->message == WM_LBUTTONUP)
-	{
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX2)->GetSafeHwnd() ||
-			pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGX1)->GetSafeHwnd())
-		{
-			Automation1_Command_MoveFreerunStop(controller, 1, &nAxis, 1);
-		}
-
-		if (pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY2)->GetSafeHwnd() ||
-			pMsg->hwnd == GetDlgItem(IDC_BUTTON_JOGY1)->GetSafeHwnd())
-		{
-			nAxis = 1;
-			Automation1_Command_MoveFreerunStop(controller, 1, &nAxis, 1);
-		}
-	}
 	return CDialogEx::PreTranslateMessage(pMsg);
 }

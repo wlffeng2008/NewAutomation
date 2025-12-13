@@ -35,6 +35,6 @@ END_MESSAGE_MAP()
 BOOL CSubDlgVision::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
-	SetDlgBKColor(RGB(0, 200, 100));
+	//SetDlgBKColor(RGB(0, 200, 100));
 	return TRUE;
 }

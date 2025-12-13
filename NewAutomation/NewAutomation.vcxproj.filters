@@ -60,6 +60,12 @@
     <ClInclude Include="SubDlgConfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ColorSlider.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgPSOEdit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NewAutomation.cpp">
@@ -93,6 +99,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SubDlgConfig.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ColorSlider.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgPSOEdit.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
