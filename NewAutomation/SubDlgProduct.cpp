@@ -144,8 +144,8 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 	{
 		CString strLine;
 		CString strScript;
-		int nCount = m_pList->GetItemCount();
 
+		int nCount = m_pList->GetItemCount();
 		strLine.Format(_T("#define  NUM_DISTANCES %d\n\nprogram\n\n\tvar $axis as axis = %s\n\n\tvar $distances[NUM_DISTANCES] as real\n\n"), nCount, IsDlgButtonChecked(IDC_RADIO1) ? _T("X1") : _T("Y1"));
 		strScript += strLine;
 
