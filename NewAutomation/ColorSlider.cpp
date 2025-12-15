@@ -62,7 +62,7 @@ void CColorSlider::OnPaint()
 
 	BOOL bHMode = nW > nH;
 
-	int nBarH = 8;
+	int nBarH = 10;
 
 	if (nBarH>nH)
 		nBarH = nH;

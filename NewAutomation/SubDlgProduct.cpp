@@ -30,9 +30,7 @@ void CSubDlgProduct::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CSubDlgProduct, CDialogEx)
 END_MESSAGE_MAP()
 
-// 基于COM接口读取超大文本
 static CString strAllText;
-static TCHAR strLineBuf[4096] = { 0 };
 static CString GetLargeText(CRichEditCtrl* richEdit)
 {
 	strAllText.Empty();
@@ -74,14 +72,17 @@ BOOL CSubDlgProduct::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	SetDlgItemInt(IDC_EDIT_POSCOUNT, 1000);
-	SetDlgItemFloat(IDC_EDIT_STEPLEN, 0.5);
-	SetDlgItemFloat(IDC_EDIT_POS0, 0);
-	CheckDlgButton(IDC_RADIO1, true);
+	SetDlgItemInt(IDC_EDIT_POSCOUNTX, 100);
+	SetDlgItemFloat(IDC_EDIT_STEPLENX, 0.5);
+	SetDlgItemFloat(IDC_EDIT_POSAX, 0);
+	SetDlgItemFloat(IDC_EDIT_POSBX, 100);
+
+	SetDlgItemInt(IDC_EDIT_POSCOUNTY, 10);
+	SetDlgItemFloat(IDC_EDIT_STEPLENY, 0.5);
+	SetDlgItemFloat(IDC_EDIT_POSAY, 0);
+	SetDlgItemFloat(IDC_EDIT_POSBY, 100);
 
 	CheckDlgButton(IDC_RADIO3, true);
-	SetDlgItemFloat(IDC_EDIT_POS1, 0);
-	SetDlgItemFloat(IDC_EDIT_POS2, 150);
 	SetDlgItemFloat(IDC_EDIT_SPEED, 50);
 	SetDlgItemFloat(IDC_EDIT_TPLUSTIME, 10);
 	SetDlgItemFloat(IDC_EDIT_PLUSDUR, 10);
@@ -92,7 +93,8 @@ BOOL CSubDlgProduct::OnInitDialog()
 	m_pList = pList;
 
 	pList->InsertColumn(0, _T("序号"), 0, 60);
-	pList->InsertColumn(1, _T("位置值"), 0, 100);
+	pList->InsertColumn(1, _T("X 位置"), 0, 80);
+	pList->InsertColumn(2, _T("Y 位置"), 0, 80);
 
 	SendCmdMsg(IDC_BUTTON_LIST);
 
@@ -105,7 +107,8 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 	{
 	case CMD_LISTCTRL_COLCLK:
 	{
-		if (m_pList->GetClickSubItem() == 1)
+		int nSubItem = m_pList->GetClickSubItem();
+		if (nSubItem == 1 || nSubItem == 2)
 		{
 			m_pList->ShowEdit();
 		}
@@ -116,22 +119,72 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 		m_pList->DeleteAllItems();
 		break;
 
+	case IDC_CHECK_WORKY:
+	case IDC_CHECK_BACKWORK:
+	case IDC_CHECK_APPEND:
 	case IDC_BUTTON_LIST:
 	{
 		if (!IsDlgButtonChecked(IDC_CHECK_APPEND))
 			m_pList->DeleteAllItems();
 
-		int nCount = GetDlgItemInt(IDC_EDIT_POSCOUNT);
-		float fStep = GetDlgItemFloat(IDC_EDIT_STEPLEN);
-		float fStart = GetDlgItemFloat(IDC_EDIT_POS0);
+		int nCountX = GetDlgItemInt(IDC_EDIT_POSCOUNTX);
+		float fStepX = GetDlgItemFloat(IDC_EDIT_STEPLENX);
+		float fStartX = GetDlgItemFloat(IDC_EDIT_POSAX);
+
+		int nCountY = GetDlgItemInt(IDC_EDIT_POSCOUNTY);
+		float fStepY = GetDlgItemFloat(IDC_EDIT_STEPLENY);
+		float fStartY = GetDlgItemFloat(IDC_EDIT_POSAY);
+
 		int nBegin = m_pList->GetItemCount();
 		m_pList->SetRedraw(false);
-		for (int i = nBegin; i < nCount + nBegin; i++)
+
+		if (IsDlgButtonChecked(IDC_CHECK_WORKY))
 		{
-			m_pList->InsertItem(i, _T(""));
-			m_pList->SetItemInt(i, 0, i + 1);
-			m_pList->SetItemFloat(i, 1, fStart + (i - nBegin) * fStep, 3);
+				for (int i = 0; i < nCountX; i++)
+				{
+					for (int j = 0; j < nCountY; j++)
+					{
+					int nItem = m_pList->GetItemCount();
+					m_pList->InsertItem(nItem, _T(""));
+					m_pList->SetItemInt(nItem, 0, nItem + 1);
+					m_pList->SetItemFloat(nItem, 1, fStartX + (i)* fStepX, 4);
+
+					if (IsDlgButtonChecked(IDC_CHECK_BACKWORK) && i % 2)
+					{
+						m_pList->SetItemFloat(nItem, 2, fStartY + (nCountY - 1 - j)* fStepY, 4);
+					}
+					else
+					{
+						m_pList->SetItemFloat(nItem, 2, fStartY + (j)* fStepY, 4);
+					}
+
+				}
+			}
 		}
+		else
+		{
+			for (int j = 0; j < nCountY; j++)
+			{
+				for (int i = 0; i < nCountX; i++)
+				{
+					int nItem = m_pList->GetItemCount();
+					m_pList->InsertItem(nItem, _T(""));
+					m_pList->SetItemInt(nItem, 0, nItem + 1);
+
+					if (IsDlgButtonChecked(IDC_CHECK_BACKWORK) && j % 2)
+					{
+						m_pList->SetItemFloat(nItem, 1, fStartX + (nCountX - 1 - i)* fStepX, 4);
+					}
+					else
+					{
+						m_pList->SetItemFloat(nItem, 1, fStartX + (i)* fStepX, 4);
+					}
+
+					m_pList->SetItemFloat(nItem, 2, fStartY + (j)* fStepY, 4);
+				}
+			}
+		}
+
 		m_pList->SetRedraw(true);
 
 		static BOOL bFirst = TRUE;
@@ -146,18 +199,23 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 		CString strScript;
 
 		int nCount = m_pList->GetItemCount();
-		strLine.Format(_T("#define  NUM_DISTANCES %d\n\nprogram\n\n\tvar $axis as axis = %s\n\n\tvar $distances[NUM_DISTANCES] as real\n\n"), nCount, IsDlgButtonChecked(IDC_RADIO1) ? _T("X1") : _T("Y1"));
+		strLine.Format(_T("#define  NUM_DISTANCES %d\n\nprogram\n\n\tvar $axisX as axis = X1\n\tvar $axisY as axis = Y1\n\n\tvar $distances[NUM_DISTANCES] as real\n\n"), nCount * 2);
 		strScript += strLine;
 
-		strLine.Format(_T("\tvar $posStart as real = %.3f\n\tvar $posEnd as real = %.3f\n\n"), GetDlgItemFloat(IDC_EDIT_POS1), GetDlgItemFloat(IDC_EDIT_POS2));
+		strLine.Format(_T("\tvar $posStartX as real = %.3f\n\tvar $posEndX as real = %.3f\n\n"), GetDlgItemFloat(IDC_EDIT_POSAX), GetDlgItemFloat(IDC_EDIT_POSBX));
 		strScript += strLine;
 
-		strLine.Format(_T("\tEnable($axis)\n\tHome($axis)\n\tSetupTaskTargetMode(TargetMode.%s)\n\n\tMoveAbsolute($axis,$posStart,100)\n\tWaitForMotionDone($axis)\n\n\tPsoReset($axis)\n\n\tPsoDistanceConfigureInputs($axis, [PsoDistanceInput.iXC4ePrimaryFeedback]);\n\n"), IsDlgButtonChecked(IDC_RADIO3) ? _T("Absolute"): _T("Incremental"));
+		strLine.Format(_T("\tvar $posStartY as real = %.3f\n\tvar $posEndY as real = %.3f\n\n"), GetDlgItemFloat(IDC_EDIT_POSAY), GetDlgItemFloat(IDC_EDIT_POSBY));
+		strScript += strLine;
+
+		strLine.Format(_T("\tEnable([$axisX,$axisY])\n\tHome([$axisX,$axisY])\n\tSetupTaskTargetMode(TargetMode.%s)\n\n\tMoveAbsolute($axisX,$posStartX,100)\n\tMoveAbsolute($axisY,$posStartY,100)\n\tWaitForMotionDone([$axisX,$axisY])\n\n\tPsoReset([$axisX,$axisY])\n\n\tPsoDistanceConfigureInputs([$axisX,$axisY], [PsoDistanceInput.iXC4ePrimaryFeedback]);\n\n"), IsDlgButtonChecked(IDC_RADIO3) ? _T("Absolute"): _T("Incremental"));
 		strScript += strLine;
 
 		for (int i = 0; i < nCount; i++)
 		{
-			strLine.Format(_T("\t$distances[%d] = UnitsToCounts($axis, %s) / ParameterGetAxisValue($axis, AxisParameter.PrimaryEmulatedQuadratureDivider)\n"), i, m_pList->GetItemText(i, 1));
+			strLine.Format(_T("\t$distances[%d] = UnitsToCounts($axisX, %s) / ParameterGetAxisValue($axisX, AxisParameter.PrimaryEmulatedQuadratureDivider)\n"), i*2, m_pList->GetItemText(i, 1));
+			strScript += strLine;
+			strLine.Format(_T("\t$distances[%d] = UnitsToCounts($axisY, %s) / ParameterGetAxisValue($axisY, AxisParameter.PrimaryEmulatedQuadratureDivider)\n"), i*2 + 1, m_pList->GetItemText(i, 2));
 			strScript += strLine;
 		}
 
@@ -179,37 +237,47 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 	PsoDistanceEventsOn($axis);
 
 	PsoWaveformConfigureMode($axis, PsoWaveformMode.Pulse)
-	PsoWaveformConfigurePulseFixedTotalTime($axis, %d)     // 脉冲固定总时间
-	PsoWaveformConfigurePulseFixedOnTime($axis, %d)        // 脉冲开启时间
-	PsoWaveformConfigurePulseFixedCount($axis, %d)         // 脉冲次数
-	PsoWaveformApplyPulseConfiguration($axis)
+	PsoWaveformConfigurePulseFixedTotalTime($axisX, %d)     // 脉冲固定总时间
+	PsoWaveformConfigurePulseFixedOnTime($axisX, %d)        // 脉冲开启时间
+	PsoWaveformConfigurePulseFixedCount($axisX, %d)         // 脉冲次数
+	PsoWaveformApplyPulseConfiguration($axisX)
 
 	// Enable the distance counter.               // 启用距离计数器
-	PsoDistanceCounterOn($axis)
+	PsoDistanceCounterOn($axisX)
+	PsoDistanceCounterOn($axisY)
 
 	// Enable distance events.                    // 启用距离事件
-	PsoDistanceEventsOn($axis);
-	PsoWaveformOn($axis)
+	PsoDistanceEventsOn($axisX);
+	PsoWaveformOn($axisX)
+	PsoDistanceEventsOn($axisY);
+	PsoWaveformOn($axisY)
 
 	// Select the waveform module output as the PSO output source.
 	// 选择波形模块作为 PSO 输出源
-	PsoOutputConfigureSource($axis, PsoOutputSource.Waveform)
+	PsoOutputConfigureSource($axisX, PsoOutputSource.Waveform)
+	PsoOutputConfigureSource($axisY, PsoOutputSource.Waveform)
 
 	// Setup the physical output (optional)        // 设置物理输出（可选）
-	PsoOutputConfigureOutput($axis, PsoOutputPin.iXC4eDedicatedOutput)  // What Pin do we want output to come out on.
+	PsoOutputConfigureOutput($axisX, PsoOutputPin.iXC4eDedicatedOutput)  // What Pin do we want output to come out on.
+	PsoOutputConfigureOutput($axisY, PsoOutputPin.iXC4eDedicatedOutput)  // What Pin do we want output to come out on.
 	                                                                    // 指定使用哪个输出引脚
 	// Trigger Data Collection.                    // 触发数据采集
 	//AppDataCollectionSnapshot()
 
-	// Move the axis 35 units, expecting 3 events. // 移动轴 35 单位，预计产生 3 个事件
-	MoveLinear($axis, $posEnd, %d)   // 50是速度
-	WaitForMotionDone($axis)
+	MoveLinear($axisX, $posEndX, %d)   // 50是速度
+	WaitForMotionDone($axisX)
 
-	PsoWaveformOff($axis)                          // 停止 PSO 功能
+	MoveLinear($axisY, $posEndY, %d)   // 50是速度
+	WaitForMotionDone($axisY)
+
+	PsoWaveformOff($axisX)                          // 停止 PSO 功能
+	PsoWaveformOff($axisY)           
 	//AppDataCollectionStop()                      // 停止数据采集
-	PsoDistanceCounterOff($axis)
+	PsoDistanceCounterOff($axisX)
+	PsoDistanceCounterOff($axisY)
 	//Enable the PSO Distance  Event module        // 禁用 PSO 距离事件模块
-	PsoDistanceEventsOff($axis)
+	PsoDistanceEventsOff($axisX)
+	PsoDistanceEventsOff($axisY)
 
 	// Stop Data Collection.                       // 停止数据采集
 	//AppDataCollectionStop()
