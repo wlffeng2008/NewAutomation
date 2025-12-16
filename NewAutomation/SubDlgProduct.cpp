@@ -140,10 +140,10 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 
 		if (IsDlgButtonChecked(IDC_CHECK_WORKY))
 		{
-				for (int i = 0; i < nCountX; i++)
+			for (int i = 0; i < nCountX; i++)
+			{
+				for (int j = 0; j < nCountY; j++)
 				{
-					for (int j = 0; j < nCountY; j++)
-					{
 					int nItem = m_pList->GetItemCount();
 					m_pList->InsertItem(nItem, _T(""));
 					m_pList->SetItemInt(nItem, 0, nItem + 1);
@@ -335,7 +335,7 @@ end
 			CString strFile = dlg.GetPathName();
 			if (SaveTextAsUTF8(strText, strFile))
 			{
-				MessageBox(CString(_T("脚本保存成功！\n")) + strFile, _T("提示"), MB_ICONINFORMATION);
+				MessageBox(CString(_T("脚本保存成功！")) + strFile, _T("提示"), MB_ICONINFORMATION);
 			}
 		}
 	}
