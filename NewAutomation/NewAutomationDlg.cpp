@@ -141,13 +141,13 @@ BOOL CNewAutomationDlg::OnInitDialog()
 	SetDlgItemPos(m_pDlgCf, 0, rc.top);
 	SetDlgItemPos(m_pDlgWi, 0, rc.top);
 
-	SetDlgItemSize(m_pDlgMn, 1024, 720);
-	SetDlgItemSize(m_pDlgPr, 1024, 720);
-	SetDlgItemSize(m_pDlgMt, 1024, 720);
-	SetDlgItemSize(m_pDlgVi, 1024, 720);
-	SetDlgItemSize(m_pDlgCl, 1024, 720);
-	SetDlgItemSize(m_pDlgCf, 1024, 720);
-	SetDlgItemSize(m_pDlgWi, 1024, 720);
+	SetDlgItemSize(m_pDlgMn, 1024, 675);
+	SetDlgItemSize(m_pDlgPr, 1024, 675);
+	SetDlgItemSize(m_pDlgMt, 1024, 675);
+	SetDlgItemSize(m_pDlgVi, 1024, 675);
+	SetDlgItemSize(m_pDlgCl, 1024, 675);
+	SetDlgItemSize(m_pDlgCf, 1024, 675);
+	SetDlgItemSize(m_pDlgWi, 1024, 675);
 
 	ShowSubDlg(0);
 
@@ -181,10 +181,10 @@ void CNewAutomationDlg::ShowSubDlg(int nIndex)
 		m_pDlgMn,
 		m_pDlgPr,
 		m_pDlgMt,
+		m_pDlgWi,
 		m_pDlgVi,
 		m_pDlgCl,
-		m_pDlgCf,
-		m_pDlgWi
+		m_pDlgCf
 	};
 
 	UINT nBtns[] = {

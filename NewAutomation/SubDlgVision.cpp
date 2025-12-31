@@ -28,13 +28,38 @@ void CSubDlgVision::DoDataExchange(CDataExchange* pDX)
 
 
 BEGIN_MESSAGE_MAP(CSubDlgVision, CDialogEx)
+	ON_WM_PAINT()
 END_MESSAGE_MAP()
 
 
-// CSubDlgVision message handlers
 BOOL CSubDlgVision::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
-	//SetDlgBKColor(RGB(0, 200, 100));
+	SetDlgBKColor(RGB(255, 255, 255));
+
 	return TRUE;
 }
+
+BOOL CSubDlgVision::OnCommand(WPARAM wParam, LPARAM lParam)
+{
+	switch (wParam)
+	{
+	default:
+		break;
+	}
+
+	return CDialogEx::OnCommand(wParam, lParam);
+}
+
+
+void CSubDlgVision::OnPaint()
+{
+	CPaintDC dc(this);
+
+	CRect rc;
+	GetClientRect(&rc);
+
+	DrawDialog(&dc);
+}
+
+

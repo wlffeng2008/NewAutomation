@@ -83,6 +83,7 @@ BOOL CSubDlgProduct::OnInitDialog()
 	SetDlgItemFloat(IDC_EDIT_POSBY, 100);
 
 	CheckDlgButton(IDC_RADIO3, true);
+	CheckDlgButton(IDC_RADIO5, true);
 	SetDlgItemFloat(IDC_EDIT_SPEED, 50);
 	SetDlgItemFloat(IDC_EDIT_TPLUSTIME, 10);
 	SetDlgItemFloat(IDC_EDIT_PLUSDUR, 10);
@@ -208,7 +209,14 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 		strLine.Format(_T("\tvar $posStartY as real = %.3f\n\tvar $posEndY as real = %.3f\n\n"), GetDlgItemFloat(IDC_EDIT_POSAY), GetDlgItemFloat(IDC_EDIT_POSBY));
 		strScript += strLine;
 
-		strLine.Format(_T("\tEnable([$axisX,$axisY])\n\tHome([$axisX,$axisY])\n\tSetupTaskTargetMode(TargetMode.%s)\n\n\tMoveAbsolute($axisX,$posStartX,100)\n\tMoveAbsolute($axisY,$posStartY,100)\n\tWaitForMotionDone([$axisX,$axisY])\n\n\tPsoReset([$axisX,$axisY])\n\n\tPsoDistanceConfigureInputs([$axisX,$axisY], [PsoDistanceInput.iXC4ePrimaryFeedback]);\n\n"), IsDlgButtonChecked(IDC_RADIO3) ? _T("Absolute"): _T("Incremental"));
+		strLine.Format(_T("\tEnable([$axisX,$axisY])\n\tHome([$axisX,$axisY])\n\tSetupTaskTargetMode(TargetMode.%s)\n\n\tMoveAbsolute($axisX,$posStartX,100)\n\tMoveAbsolute($axisY,$posStartY,100)\n\tWaitForMotionDone([$axisX,$axisY])\n\n\tPsoReset([$axisX,$axisY])\n\n"), IsDlgButtonChecked(IDC_RADIO3) ? _T("Absolute"): _T("Incremental"));
+		strScript += strLine;
+
+		if (IsDlgButtonChecked(IDC_RADIO5))
+			strLine = _T("\tPsoDistanceconfigureInputs($axisX, [PsoDistanceInput.iXC4eSyncPortA])\n\n");
+		else
+			strLine = _T("\tPsoDistanceConfigureInputs($axisY, [PsoDistance Input.iXC4ePrimaryFeedback])\n\n");
+
 		strScript += strLine;
 
 		for (int i = 0; i < nCount; i++)
@@ -283,7 +291,7 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 	//AppDataCollectionStop()
 
 end
-)"), v1, v2, v3, v4 );
+)"), v1, v2, v3, v4, v4 );
 
 		strScript += strLine;
 		SetDlgItemText(IDC_RICHEDIT21, strScript);

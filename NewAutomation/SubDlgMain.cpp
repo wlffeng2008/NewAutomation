@@ -43,6 +43,7 @@ void CSubDlgMain::SaveLoadSetting(BOOL bToSave)
 	CIniAX Set(_T("Automation.ini"), _T("Config"));
 	if (bToSave)
 	{
+		Set.SetString(_T("HostIP"), GetDlgItemTextEx(IDC_EDIT_HOSTIP));
 		Set.SetString(_T("Account"), GetDlgItemTextEx(IDC_EDIT_USER));
 		Set.SetString(_T("PWord"), GetDlgItemTextEx(IDC_EDIT_PWORD));
 		Set.SetString(_T("SpeedX"), GetDlgItemTextEx(IDC_EDIT_SPEEDX));
@@ -55,6 +56,7 @@ void CSubDlgMain::SaveLoadSetting(BOOL bToSave)
 	}
 	else
 	{
+		SetDlgItemText(IDC_EDIT_HOSTIP, Set.GetString(_T("HostIP"), _T("169.254.254.244")));
 		SetDlgItemText(IDC_EDIT_USER, Set.GetString(_T("Account"), _T("Admin")));
 		SetDlgItemText(IDC_EDIT_PWORD, Set.GetString(_T("PWord"), _T("123")));
 		SetDlgItemText(IDC_EDIT_SPEEDX, Set.GetString(_T("SpeedX"), _T("50")));
@@ -267,11 +269,10 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 		CheckDlgButton(IDC_CHECK_RUN, FALSE);
 		if (IsDlgButtonChecked(IDC_CHECK_CONNECT))
 		{
-			CString strUser;
-			CString strPWd;
-			GetDlgItemText(IDC_EDIT_USER, strUser);
-			GetDlgItemText(IDC_EDIT_PWORD, strPWd);
-			BOOL bRet = Automation1_ConnectWithHostAndUser("169.254.8.208", CW2A(strUser), CW2A(strPWd), &controller);
+			CString strUser=GetDlgItemTextEx(IDC_EDIT_USER);
+			CString strPWd=GetDlgItemTextEx(IDC_EDIT_PWORD);
+			CString strIP=GetDlgItemTextEx(IDC_EDIT_HOSTIP);
+			BOOL bRet = Automation1_ConnectWithHostAndUser(CW2A(strIP), CW2A(strUser), CW2A(strPWd), &controller);
 			if (bRet)
 			{
 				Automation1_Controller_Start(controller);
