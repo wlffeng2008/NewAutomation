@@ -130,24 +130,13 @@ BOOL CNewAutomationDlg::OnInitDialog()
 
 	m_pDlgPr->m_pMain = m_pDlgMn;
 
-	CRect rc;
-	GetDlgItem(IDC_STATIC_FRAME)->GetWindowRect(&rc);
-	ScreenToClient(&rc);
-	SetDlgItemPos(m_pDlgMn, 0, rc.top);
-	SetDlgItemPos(m_pDlgPr, 0, rc.top);
-	SetDlgItemPos(m_pDlgMt, 0, rc.top);
-	SetDlgItemPos(m_pDlgVi, 0, rc.top);
-	SetDlgItemPos(m_pDlgCl, 0, rc.top);
-	SetDlgItemPos(m_pDlgCf, 0, rc.top);
-	SetDlgItemPos(m_pDlgWi, 0, rc.top);
-
-	SetDlgItemSize(m_pDlgMn, 1024, 675);
-	SetDlgItemSize(m_pDlgPr, 1024, 675);
-	SetDlgItemSize(m_pDlgMt, 1024, 675);
-	SetDlgItemSize(m_pDlgVi, 1024, 675);
-	SetDlgItemSize(m_pDlgCl, 1024, 675);
-	SetDlgItemSize(m_pDlgCf, 1024, 675);
-	SetDlgItemSize(m_pDlgWi, 1024, 675);
+	SetDlgItemPos2(m_pDlgMn, IDC_STATIC_FRAME);
+	SetDlgItemPos2(m_pDlgPr, IDC_STATIC_FRAME);
+	SetDlgItemPos2(m_pDlgMt, IDC_STATIC_FRAME);
+	SetDlgItemPos2(m_pDlgVi, IDC_STATIC_FRAME);
+	SetDlgItemPos2(m_pDlgCl, IDC_STATIC_FRAME);
+	SetDlgItemPos2(m_pDlgCf, IDC_STATIC_FRAME);
+	SetDlgItemPos2(m_pDlgWi, IDC_STATIC_FRAME);
 
 	ShowSubDlg(0);
 
