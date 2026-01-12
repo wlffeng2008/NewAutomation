@@ -1,6 +1,6 @@
 #pragma once
 
-
+#include "OutsideLoad.h"
 // CSubDlgProduct dialog
 class CSubDlgMain;
 class CSubDlgProduct : public CDialogEx
@@ -13,6 +13,10 @@ public:
 
 	CMyListCtrl *m_pList = nullptr;
 	CSubDlgMain *m_pMain = nullptr;
+
+	COutsideLoad *m_pLoader = nullptr;
+
+	int OnSimpleThreadLoopRun(int nID);
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_DIALOG_PRODUCT };

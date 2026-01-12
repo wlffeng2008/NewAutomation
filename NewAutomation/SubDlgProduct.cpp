@@ -99,7 +99,59 @@ BOOL CSubDlgProduct::OnInitDialog()
 
 	SendCmdMsg(IDC_BUTTON_LIST);
 
+	m_pLoader = new COutsideLoad();
+
+	StartThread(0);
+
 	return TRUE;
+}
+
+int CSubDlgProduct::OnSimpleThreadLoopRun(int nID)
+{
+	if(nID == 0)
+	{
+		while (1)
+		{
+			SimpleWait(0);
+			CFileDialog  dlg(true, _T("txt"));
+			if (dlg.DoModal() == IDOK)
+			{
+				m_pLoader->LoadFile(dlg.GetPathName());
+				int nCount = m_pLoader->GetCount();
+				if (nCount <= 0) continue;
+
+				m_pList->SetRedraw(false);
+				m_pList->DeleteAllItems();
+				for (int i = 0; i < 1; i++)
+				{
+					CLoader *pLoad = m_pLoader->GetData(i);
+					int nPosCount = pLoad->GetCount();
+					double dbStart = pLoad->GetStart();
+					int nType = pLoad->GetType();
+					 
+					for (int j = 0; j < nPosCount; j++)
+					{
+						int nItem = m_pList->GetItemCount();
+						m_pList->InsertItem(nItem, _T(""));
+							m_pList->SetItemInt(nItem, 0, nItem + 1);
+						if (nType)
+						{
+							m_pList->SetItemFloat(nItem, 1, dbStart, 4);
+							m_pList->SetItemFloat(nItem, 2, pLoad->GetData(j),4);
+						}
+						else
+						{
+							m_pList->SetItemFloat(nItem, 1, pLoad->GetData(j),4);
+							m_pList->SetItemFloat(nItem, 2, dbStart, 4);
+						}
+					}
+				}
+
+				m_pList->SetRedraw(true);
+			}
+		}
+	}
+	return 0;
 }
 
 BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
@@ -115,6 +167,11 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 		}
 	}
 	break;
+	case IDC_BUTTON_LOAD:
+	{
+		SimpleFire(0);
+	}
+		break;
 
 	case IDC_BUTTON_CLEAR:
 		m_pList->DeleteAllItems();
@@ -158,7 +215,6 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 					{
 						m_pList->SetItemFloat(nItem, 2, fStartY + (j)* fStepY, 4);
 					}
-
 				}
 			}
 		}
