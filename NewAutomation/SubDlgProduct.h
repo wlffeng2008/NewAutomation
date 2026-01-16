@@ -13,7 +13,7 @@ public:
 
 	CMyListCtrl *m_pList = nullptr;
 	CSubDlgMain *m_pMain = nullptr;
-
+	CComboBox *m_pCmbSel = nullptr;
 	COutsideLoad *m_pLoader = nullptr;
 
 	int OnSimpleThreadLoopRun(int nID);

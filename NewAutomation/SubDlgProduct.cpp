@@ -99,9 +99,12 @@ BOOL CSubDlgProduct::OnInitDialog()
 
 	SendCmdMsg(IDC_BUTTON_LIST);
 
-	m_pLoader = new COutsideLoad();
+	m_pCmbSel = GetMyComboBox(IDC_COMBO_OUTSIZE);
+	QFillComboBoxInt(IDC_COMBO_OUTSIZE, 200, 1);
 
+	m_pLoader = new COutsideLoad();
 	StartThread(0);
+	StartThread(1);
 
 	return TRUE;
 }
@@ -110,7 +113,7 @@ int CSubDlgProduct::OnSimpleThreadLoopRun(int nID)
 {
 	if(nID == 0)
 	{
-		while (1)
+		for(;;)
 		{
 			SimpleWait(0);
 			CFileDialog  dlg(true, _T("txt"));
@@ -119,36 +122,52 @@ int CSubDlgProduct::OnSimpleThreadLoopRun(int nID)
 				m_pLoader->LoadFile(dlg.GetPathName());
 				int nCount = m_pLoader->GetCount();
 				if (nCount <= 0) continue;
+				QFillComboBoxInt(IDC_COMBO_START, nCount);
+				SetComboBoxSel(IDC_COMBO_OUTSIZE,0);
+				SimpleFire(1);
+			}
+		}
+	}
 
-				m_pList->SetRedraw(false);
-				m_pList->DeleteAllItems();
-				for (int i = 0; i < 1; i++)
+	if (nID == 1)
+	{
+		for (;;)
+		{
+			SimpleWait(1);
+
+			m_pList->SetRedraw(false);
+			m_pList->DeleteAllItems();
+			int nLoadCount = GetDlgItemInt(IDC_COMBO_OUTSIZE);
+			int nLoadStart = GetDlgItemInt(IDC_COMBO_START);
+			for (int i = 0; i < nLoadCount; i++)
+			{
+				int nToLoad = i + nLoadStart;
+				if (nToLoad >= m_pLoader->GetCount())
+					break;
+				CLoader *pLoad = m_pLoader->GetData(nToLoad);
+				int nPosCount = pLoad->GetCount();
+				double dbStart = pLoad->GetStart();
+				int nType = pLoad->GetType();
+
+				for (int j = 0; j < nPosCount; j++)
 				{
-					CLoader *pLoad = m_pLoader->GetData(i);
-					int nPosCount = pLoad->GetCount();
-					double dbStart = pLoad->GetStart();
-					int nType = pLoad->GetType();
-					 
-					for (int j = 0; j < nPosCount; j++)
+					int nItem = m_pList->GetItemCount();
+					m_pList->InsertItem(nItem, _T(""));
+					m_pList->SetItemInt(nItem, 0, nItem + 1);
+					if (nType)
 					{
-						int nItem = m_pList->GetItemCount();
-						m_pList->InsertItem(nItem, _T(""));
-							m_pList->SetItemInt(nItem, 0, nItem + 1);
-						if (nType)
-						{
-							m_pList->SetItemFloat(nItem, 1, dbStart, 4);
-							m_pList->SetItemFloat(nItem, 2, pLoad->GetData(j),4);
-						}
-						else
-						{
-							m_pList->SetItemFloat(nItem, 1, pLoad->GetData(j),4);
-							m_pList->SetItemFloat(nItem, 2, dbStart, 4);
-						}
+						m_pList->SetItemFloat(nItem, 1, dbStart, 4);
+						m_pList->SetItemFloat(nItem, 2, pLoad->GetData(j), 4);
+					}
+					else
+					{
+						m_pList->SetItemFloat(nItem, 1, pLoad->GetData(j), 4);
+						m_pList->SetItemFloat(nItem, 2, dbStart, 4);
 					}
 				}
-
-				m_pList->SetRedraw(true);
 			}
+
+			m_pList->SetRedraw(true);
 		}
 	}
 	return 0;
@@ -167,10 +186,19 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 		}
 	}
 	break;
+
 	case IDC_BUTTON_LOAD:
 	{
 		SimpleFire(0);
 	}
+		break;
+
+	case IDC_COMBO_OUTSIZE:
+	case IDC_COMBO_START:
+		if(HIWORD(wParam) == CBN_SELCHANGE)
+		{
+			SimpleFire(1);
+		}
 		break;
 
 	case IDC_BUTTON_CLEAR:
