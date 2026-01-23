@@ -43,6 +43,22 @@ double CLoader::GetData(int nIndex)
 	return 0;
 }
 
+CString & CLoader::ToArray()
+{
+	static CString strArray;
+	strArray = _T("[");
+	CString strVal;
+	for (int i = 0; i < m_nCount; i++)
+	{
+		strVal.Format(_T("%f"), m_buf[i]);
+		strArray.Append(strVal);
+		if(i < m_nCount -1)
+			strArray.Append(_T(","));
+	}
+	strArray.Append(_T("]"));
+	return strArray;
+}
+
 double CLoader::GetStart() { return m_dbStart; }
 
 int CLoader::GetCount() { return m_nCount; }

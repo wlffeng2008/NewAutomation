@@ -206,15 +206,15 @@ void CSubDlgMain::OnTimer(UINT_PTR nIDEvent)
 					pSTLab->SetTextColor(RGB(0, 255, 0));
 
 				bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
-				TRACE("Enabled: %s\n", isEnabled ? "true" : "false");
+				//TRACE("Enabled: %s\n", isEnabled ? "true" : "false");
 
 
 				bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
-				TRACE("Homed: %s\n", isHomed ? "true" : "false");
+				//TRACE("Homed: %s\n", isHomed ? "true" : "false");
 
 				bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
 				bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
-				TRACE("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
+				//TRACE("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
 			}
 			Automation1_StatusConfig_Destroy(statusConfig);
 		}
@@ -243,15 +243,15 @@ void CSubDlgMain::OnTimer(UINT_PTR nIDEvent)
 					pSTLab->SetTextColor(RGB(0, 255, 0));
 
 				bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
-				TRACE("Enabled: %s\n", isEnabled ? "true" : "false");
+				//TRACE("Enabled: %s\n", isEnabled ? "true" : "false");
 
 
 				bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
-				TRACE("Homed: %s\n", isHomed ? "true" : "false");
+				//TRACE("Homed: %s\n", isHomed ? "true" : "false");
 
 				bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
 				bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
-				TRACE("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
+				//TRACE("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
 			}
 			Automation1_StatusConfig_Destroy(statusConfig);
 		}
@@ -259,6 +259,73 @@ void CSubDlgMain::OnTimer(UINT_PTR nIDEvent)
 
 	CDialogEx::OnTimer(nIDEvent);
 }
+
+
+bool taskCallback(Automation1TaskCallbackArguments callbackArguments, Automation1TaskCallbackReturn callbackReturn)
+{
+	TRACE("taskCallback......\n");
+	// Call the Automation1_Task_CallbackGetArguments() function one time to get the size of each array.
+	int32_t taskIndex;
+	int32_t callbackId;
+	int32_t integerInputsLen;
+	int32_t realInputsLen;
+	int32_t stringInputsLen;
+	int32_t maxStringInputLen;
+	if (!Automation1_Task_CallbackGetArguments(callbackArguments,
+		&taskIndex, &callbackId,
+		NULL, &integerInputsLen,
+		NULL, &realInputsLen,
+		NULL, &stringInputsLen, &maxStringInputLen))
+	{
+	}
+
+	// Allocate space for the arrays and call the Automation1_Task_CallbackGetArguments() function again to populate them. AeroScript strings are stored in succession based on the stringInputsLen and maxStringInputLen values. The total space that an array of AeroScript strings requires is stringInputsLen * maxStringInputLen.
+	int64_t* integerInputs = (int64_t*)malloc(sizeof(int64_t) * integerInputsLen);
+	double* realInputs = (double*)malloc(sizeof(double) * realInputsLen);
+	char* stringInputs = (char*)malloc(sizeof(char) * stringInputsLen * maxStringInputLen);
+	if (!Automation1_Task_CallbackGetArguments(callbackArguments,
+		NULL, NULL,
+		integerInputs, &integerInputsLen,
+		realInputs, &realInputsLen,
+		stringInputs, &stringInputsLen, &maxStringInputLen))
+	{
+	}
+
+	// Loop over and print the results.
+	for (int i = 0; i < integerInputsLen; i++)
+	{
+		TRACE("%d\n", integerInputs[i]);
+	}
+
+	for (int i = 0; i < realInputsLen; i++)
+	{
+		TRACE("%f\n", realInputs[i]);
+	}
+
+	for (int i = 0; i < stringInputsLen; i++)
+	{
+		TRACE("%s\n", &stringInputs[i * maxStringInputLen]);
+	}
+
+	free(integerInputs);
+	free(realInputs);
+	free(stringInputs);
+
+	// Set the values to return to an AeroScript program.
+	int64_t integerOutputs[4] = { 5, 2, 9, 102 };
+	double realOutputs[5] = { 1.1, 2.2, 3.3, 4.4, 5.5 };
+	const char* stringOutputs[3] = { "Hello", "From", "C!" };
+	if (!Automation1_Task_CallbackSetReturn(callbackReturn,
+		integerOutputs, 4,
+		realOutputs, 5,
+		stringOutputs, 3))
+	{
+		/* handle error */
+	}
+
+	return true;
+}
+
 
 BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 {
@@ -275,7 +342,10 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 			BOOL bRet = Automation1_ConnectWithHostAndUser(CW2A(strIP), CW2A(strUser), CW2A(strPWd), &controller);
 			if (bRet)
 			{
-				Automation1_Controller_Start(controller);
+				//Automation1_Controller_Start(controller);
+				if (!Automation1_Task_CallbackRegister(controller, 1, 1, taskCallback)) { 
+					TRACE("Automation1_Task_CallbackRegister FAILED\n");
+				}
 
 				CheckDlgButton(IDC_CHECK_RUN, TRUE);
 				CheckDlgButton(IDC_CHECKENABLEX, TRUE);
@@ -419,8 +489,7 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 		{
 			if (MessageBox(CString(_T("确定运行以下脚本吗？\n"))+dlg.GetPathName(), _T("提示"), MB_ICONQUESTION | MB_YESNO) == IDYES)
 			{
-				//Automation1_Files_Delete(controller,"file.ascript");
-				const char *strLoad = "ttx1.ascript";
+				const char *strLoad = "manul.ascript";
 				Automation1_Files_Upload(controller,CW2A(dlg.GetPathName()), strLoad);
 				Automation1_Task_ProgramLoad(controller, 1, strLoad);
 				Automation1_Task_ProgramRun(controller, 1, strLoad);
@@ -433,7 +502,16 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 	{
 		const char *strLoad = "tmp.ascript";
 		CString strFile = GetCurrentPath() + _T("\\tmp.ascript");
-		//Automation1_Files_Delete(controller,"file.ascript");
+		Automation1_Files_Upload(controller, CW2A(strFile), strLoad);
+		Automation1_Task_ProgramLoad(controller, 1, strLoad);
+		Automation1_Task_ProgramRun(controller, 1, strLoad);
+	}
+	return true;
+
+	case 9982:
+	{
+		const char *strLoad = "writefile.ascript";
+		CString strFile = GetCurrentPath() + _T("\\writefile.ascript");
 		Automation1_Files_Upload(controller, CW2A(strFile), strLoad);
 		Automation1_Task_ProgramLoad(controller, 1, strLoad);
 		Automation1_Task_ProgramRun(controller, 1, strLoad);

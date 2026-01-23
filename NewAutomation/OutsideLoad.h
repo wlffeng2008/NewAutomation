@@ -11,7 +11,7 @@ public:
 	double GetStart();
 	int GetCount();
 	int GetType();
-
+	CString & ToArray();
 private:
 	double *m_buf=nullptr;
 	int m_nType=0;  // X Y

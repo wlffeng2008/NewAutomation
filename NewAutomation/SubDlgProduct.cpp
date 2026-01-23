@@ -72,12 +72,12 @@ BOOL CSubDlgProduct::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	SetDlgItemInt(IDC_EDIT_POSCOUNTX, 100);
-	SetDlgItemFloat(IDC_EDIT_STEPLENX, 0.5);
+	SetDlgItemInt(IDC_EDIT_POSCOUNTX, 10);
+	SetDlgItemFloat(IDC_EDIT_STEPLENX, 5);
 	SetDlgItemFloat(IDC_EDIT_POSAX, 0);
 	SetDlgItemFloat(IDC_EDIT_POSBX, 100);
 
-	SetDlgItemInt(IDC_EDIT_POSCOUNTY, 10);
+	SetDlgItemInt(IDC_EDIT_POSCOUNTY, 1);
 	SetDlgItemFloat(IDC_EDIT_STEPLENY, 0.5);
 	SetDlgItemFloat(IDC_EDIT_POSAY, 0);
 	SetDlgItemFloat(IDC_EDIT_POSBY, 100);
@@ -135,10 +135,47 @@ int CSubDlgProduct::OnSimpleThreadLoopRun(int nID)
 		{
 			SimpleWait(1);
 
-			m_pList->SetRedraw(false);
-			m_pList->DeleteAllItems();
 			int nLoadCount = GetDlgItemInt(IDC_COMBO_OUTSIZE);
 			int nLoadStart = GetDlgItemInt(IDC_COMBO_START);
+
+			//for (int i = 0; i < nLoadCount; i++)
+			{
+				CLoader *pLoad = m_pLoader->GetData(nLoadStart);
+				int nPosCount = pLoad->GetCount();
+				double dbStart = pLoad->GetStart();
+				int nType = pLoad->GetType();
+
+				CString strFile;
+				strFile.Format(_T("/postions-%d.rd"),nLoadStart);
+				CString strScript;
+				strScript.Format(_T(R"(
+program
+
+	var $fileHandle as handle
+	var $positions[%d] as real = %s
+
+	$fileHandle = FileOpenBinary("%s", FileMode.Overwrite)
+
+	FileBinaryWriteUInt32($fileHandle, %d) // type
+	FileBinaryWriteUInt32($fileHandle, %d) // count
+	FileBinaryWriteFloat64($fileHandle, %f)// start
+	FileBinaryWriteFloat64Array($fileHandle, $positions, %d)
+
+	FileClose($fileHandle)
+
+end )"), nPosCount, pLoad->ToArray(), strFile, nType, nPosCount, dbStart, nPosCount);
+
+				strFile = GetCurrentPath() + _T("writefile.ascript");
+				if (SaveTextAsUTF8(strScript, strFile))
+				{
+					m_pMain->SendCmdMsg(9982);
+				}
+			}
+
+			continue;
+
+			m_pList->SetRedraw(false);
+			m_pList->DeleteAllItems();
 			for (int i = 0; i < nLoadCount; i++)
 			{
 				int nToLoad = i + nLoadStart;
@@ -293,11 +330,11 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 		strLine.Format(_T("\tvar $posStartY as real = %.3f\n\tvar $posEndY as real = %.3f\n\n"), GetDlgItemFloat(IDC_EDIT_POSAY), GetDlgItemFloat(IDC_EDIT_POSBY));
 		strScript += strLine;
 
-		strLine.Format(_T("\tEnable([$axisX,$axisY])\n\tHome([$axisX,$axisY])\n\tSetupTaskTargetMode(TargetMode.%s)\n\n\tMoveAbsolute($axisX,$posStartX,100)\n\tMoveAbsolute($axisY,$posStartY,100)\n\tWaitForMotionDone([$axisX,$axisY])\n\n\tPsoReset([$axisX,$axisY])\n\n"), IsDlgButtonChecked(IDC_RADIO3) ? _T("Absolute"): _T("Incremental"));
+		strLine.Format(_T("\tEnable([$axisX,$axisY])\n\tHome([$axisX,$axisY])\n\tSetupTaskTargetMode(TargetMode.%s)\n\n\tMoveAbsolute($axisX,$posStartX,100)\n\tMoveAbsolute($axisY,$posStartY,100)\n\tWaitForMotionDone([$axisX,$axisY])\n\n\tPsoReset($axisX)\n\n"), IsDlgButtonChecked(IDC_RADIO3) ? _T("Absolute"): _T("Incremental"));
 		strScript += strLine;
 
 		if (IsDlgButtonChecked(IDC_RADIO5))
-			strLine = _T("\tPsoDistanceconfigureInputs($axisX, [PsoDistanceInput.iXC4eSyncPortA])\n\n");
+			strLine = _T("\tPsoDistanceConfigureInputs($axisX, [PsoDistanceInput.iXC4eSyncPortA])\n\n");
 		else
 			strLine = _T("\tPsoDistanceConfigureInputs($axisY, [PsoDistance Input.iXC4ePrimaryFeedback])\n\n");
 
@@ -317,18 +354,18 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 		int v4 = GetDlgItemInt(IDC_EDIT_SPEED) ;
 
 		strLine.Format(_T(R"(
-	DriveArrayWrite($axis, $distances, 0, NUM_DISTANCES, DriveArrayType.PsoDistanceEventDistances)
+	DriveArrayWrite($axisX, $distances, 0, NUM_DISTANCES, DriveArrayType.PsoDistanceEventDistances)
 	
 	// Configure the distance module to generate an event at the distances specified in the drive array.
-	PsoDistanceConfigureArrayDistances($axis, 0, NUM_DISTANCES, false)
+	PsoDistanceConfigureArrayDistances($axisX, 0, NUM_DISTANCES, false)
 
 	// Enable the distance counter.
-	PsoDistanceCounterOn($axis)
+	PsoDistanceCounterOn($axisX)
 
 	// Enable distance events.
-	PsoDistanceEventsOn($axis);
+	PsoDistanceEventsOn($axisX);
 
-	PsoWaveformConfigureMode($axis, PsoWaveformMode.Pulse)
+	PsoWaveformConfigureMode($axisX, PsoWaveformMode.Pulse)
 	PsoWaveformConfigurePulseFixedTotalTime($axisX, %d)     // 脉冲固定总时间
 	PsoWaveformConfigurePulseFixedOnTime($axisX, %d)        // 脉冲开启时间
 	PsoWaveformConfigurePulseFixedCount($axisX, %d)         // 脉冲次数
