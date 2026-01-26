@@ -1,9 +1,50 @@
 #include "stdafx.h"
 #include "OutsideLoad.h"
 
+CString GetLargeText(CRichEditCtrl* richEdit)
+{
+	static CString strAllText;
+	strAllText.Empty();
+
+	try
+	{
+		richEdit->SetSel(0, 0xFFFFFF);
+		richEdit->Copy();
+
+		if (::OpenClipboard(nullptr))
+		{
+			HANDLE hData = ::GetClipboardData(CF_TEXT);
+			CHAR *pTmp = (CHAR *)::GlobalLock(hData);
+			strAllText = CA2W(pTmp);
+			::GlobalUnlock(pTmp);
+			::CloseClipboard();
+		}
+	}
+	catch (const std::exception&)
+	{
+	}
+	return strAllText;
+}
+
+BOOL SaveTextAsUTF8(const CString&strText, const CString&strFile)
+{
+	CFile UF;
+	if (UF.Open(strFile, CFile::modeCreate | CFile::modeWrite))
+	{
+		const char *pUTF8 = UTF8Encode(CW2A(strText));
+		UF.Write(pUTF8, strlen(pUTF8));
+		UF.Close();
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+
+
 static CString s_strPath;
 
-static inline double strToDouble(LPCTSTR lpValue) {
+inline double strToDouble(LPCTSTR lpValue) {
 
 	CString strValue(lpValue);
 	strValue.Trim();
@@ -12,6 +53,16 @@ static inline double strToDouble(LPCTSTR lpValue) {
 	strValue.Trim();
 	return atof(CW2A(strValue));
 }
+
+inline CString& doubleToStr(double value)
+{
+	static  CString strVal;
+	strVal.Format(_T("%f"), value);
+	strVal.TrimRight('0');
+	strVal.TrimRight('.');
+	return strVal;
+}
+
 
 CLoader::CLoader(int nIndex, int nType, double dbStart)
 {
@@ -48,9 +99,14 @@ CString & CLoader::ToArray()
 	static CString strArray;
 	strArray = _T("[");
 	CString strVal;
+
 	for (int i = 0; i < m_nCount; i++)
 	{
-		strVal.Format(_T("%f"), m_buf[i]);
+		double value = m_buf[i];
+		if(m_nIndex % 2) value = m_buf[m_nCount-1-i];
+		value += (m_nType == 0 ? m_offsetY: m_offsetX);
+
+		strVal = doubleToStr(value);
 		strArray.Append(strVal);
 		if(i < m_nCount -1)
 			strArray.Append(_T(","));
@@ -59,7 +115,13 @@ CString & CLoader::ToArray()
 	return strArray;
 }
 
-double CLoader::GetStart() { return m_dbStart; }
+void  CLoader::SetOffset(double x, double y)
+{
+	m_offsetX = x;
+	m_offsetY = y;
+}
+
+double CLoader::GetStart() { return m_dbStart + (m_nType == 0 ? m_offsetY : m_offsetX); }
 
 int CLoader::GetCount() { return m_nCount; }
 

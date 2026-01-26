@@ -30,43 +30,6 @@ void CSubDlgProduct::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CSubDlgProduct, CDialogEx)
 END_MESSAGE_MAP()
 
-static CString strAllText;
-static CString GetLargeText(CRichEditCtrl* richEdit)
-{
-	strAllText.Empty();
-	try
-	{
-		richEdit->SetSel(0, 0xFFFFFF);
-		richEdit->Copy();
-
-		if(::OpenClipboard(nullptr))
-		{
-			HANDLE hData = ::GetClipboardData(CF_TEXT);
-			CHAR *pTmp = (CHAR *)::GlobalLock(hData);
-			strAllText = CA2W(pTmp);
-			::GlobalUnlock(pTmp);
-			::CloseClipboard();
-		}
-	}
-	catch (const std::exception&)
-	{
-	}
-	return strAllText;
-}
-
-static BOOL SaveTextAsUTF8(const CString&strText, const CString&strFile)
-{
-	CFile UF;
-	if(UF.Open(strFile,CFile::modeCreate|CFile::modeWrite))
-	{ 
-		const char *pUTF8 = UTF8Encode(CW2A(strText));
-		UF.Write(pUTF8,strlen(pUTF8));
-		UF.Close();
-		return TRUE;
-	}
-	return FALSE;
-}
-
 // CSubDlgProduct message handlers
 BOOL CSubDlgProduct::OnInitDialog()
 {
@@ -99,116 +62,9 @@ BOOL CSubDlgProduct::OnInitDialog()
 
 	SendCmdMsg(IDC_BUTTON_LIST);
 
-	m_pCmbSel = GetMyComboBox(IDC_COMBO_OUTSIZE);
-	QFillComboBoxInt(IDC_COMBO_OUTSIZE, 200, 1);
-
-	m_pLoader = new COutsideLoad();
-	StartThread(0);
-	StartThread(1);
-
 	return TRUE;
 }
 
-int CSubDlgProduct::OnSimpleThreadLoopRun(int nID)
-{
-	if(nID == 0)
-	{
-		for(;;)
-		{
-			SimpleWait(0);
-			CFileDialog  dlg(true, _T("txt"));
-			if (dlg.DoModal() == IDOK)
-			{
-				m_pLoader->LoadFile(dlg.GetPathName());
-				int nCount = m_pLoader->GetCount();
-				if (nCount <= 0) continue;
-				QFillComboBoxInt(IDC_COMBO_START, nCount);
-				SetComboBoxSel(IDC_COMBO_OUTSIZE,0);
-				SimpleFire(1);
-			}
-		}
-	}
-
-	if (nID == 1)
-	{
-		for (;;)
-		{
-			SimpleWait(1);
-
-			int nLoadCount = GetDlgItemInt(IDC_COMBO_OUTSIZE);
-			int nLoadStart = GetDlgItemInt(IDC_COMBO_START);
-
-			//for (int i = 0; i < nLoadCount; i++)
-			{
-				CLoader *pLoad = m_pLoader->GetData(nLoadStart);
-				int nPosCount = pLoad->GetCount();
-				double dbStart = pLoad->GetStart();
-				int nType = pLoad->GetType();
-
-				CString strFile;
-				strFile.Format(_T("/postions-%d.rd"),nLoadStart);
-				CString strScript;
-				strScript.Format(_T(R"(
-program
-
-	var $fileHandle as handle
-	var $positions[%d] as real = %s
-
-	$fileHandle = FileOpenBinary("%s", FileMode.Overwrite)
-
-	FileBinaryWriteUInt32($fileHandle, %d) // type
-	FileBinaryWriteUInt32($fileHandle, %d) // count
-	FileBinaryWriteFloat64($fileHandle, %f)// start
-	FileBinaryWriteFloat64Array($fileHandle, $positions, %d)
-
-	FileClose($fileHandle)
-
-end )"), nPosCount, pLoad->ToArray(), strFile, nType, nPosCount, dbStart, nPosCount);
-
-				strFile = GetCurrentPath() + _T("writefile.ascript");
-				if (SaveTextAsUTF8(strScript, strFile))
-				{
-					m_pMain->SendCmdMsg(9982);
-				}
-			}
-
-			continue;
-
-			m_pList->SetRedraw(false);
-			m_pList->DeleteAllItems();
-			for (int i = 0; i < nLoadCount; i++)
-			{
-				int nToLoad = i + nLoadStart;
-				if (nToLoad >= m_pLoader->GetCount())
-					break;
-				CLoader *pLoad = m_pLoader->GetData(nToLoad);
-				int nPosCount = pLoad->GetCount();
-				double dbStart = pLoad->GetStart();
-				int nType = pLoad->GetType();
-
-				for (int j = 0; j < nPosCount; j++)
-				{
-					int nItem = m_pList->GetItemCount();
-					m_pList->InsertItem(nItem, _T(""));
-					m_pList->SetItemInt(nItem, 0, nItem + 1);
-					if (nType)
-					{
-						m_pList->SetItemFloat(nItem, 1, dbStart, 4);
-						m_pList->SetItemFloat(nItem, 2, pLoad->GetData(j), 4);
-					}
-					else
-					{
-						m_pList->SetItemFloat(nItem, 1, pLoad->GetData(j), 4);
-						m_pList->SetItemFloat(nItem, 2, dbStart, 4);
-					}
-				}
-			}
-
-			m_pList->SetRedraw(true);
-		}
-	}
-	return 0;
-}
 
 BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 {
@@ -225,17 +81,7 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 	break;
 
 	case IDC_BUTTON_LOAD:
-	{
-		SimpleFire(0);
-	}
-		break;
-
-	case IDC_COMBO_OUTSIZE:
-	case IDC_COMBO_START:
-		if(HIWORD(wParam) == CBN_SELCHANGE)
-		{
-			SimpleFire(1);
-		}
+		SendCmdToParent(9981);
 		break;
 
 	case IDC_BUTTON_CLEAR:
@@ -351,7 +197,7 @@ BOOL CSubDlgProduct::OnCommand(WPARAM wParam, LPARAM lParam)
 		int v1 = GetDlgItemInt(IDC_EDIT_TPLUSTIME);
 		int v2 = GetDlgItemInt(IDC_EDIT_PLUSDUR);
 		int v3 = GetDlgItemInt(IDC_EDIT_PLUSCOUNT);
-		int v4 = GetDlgItemInt(IDC_EDIT_SPEED) ;
+		int v4 = GetDlgItemInt(IDC_EDIT_SPEED);
 
 		strLine.Format(_T(R"(
 	DriveArrayWrite($axisX, $distances, 0, NUM_DISTANCES, DriveArrayType.PsoDistanceEventDistances)

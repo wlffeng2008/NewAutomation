@@ -3,21 +3,24 @@
 #include "OutsideLoad.h"
 
 class CSubDlgMain;
-class CSubDlgProduct : public CDialogEx
+class COutloadDlg : public CDialogEx
 {
-	DECLARE_DYNAMIC(CSubDlgProduct)
+	DECLARE_DYNAMIC(COutloadDlg)
 
 public:
-	CSubDlgProduct(CWnd* pParent = NULL);   // standard constructor
-	virtual ~CSubDlgProduct();
+	COutloadDlg(CWnd* pParent = NULL);   // standard constructor
+	virtual ~COutloadDlg();
 
-	CMyListCtrl *m_pList = nullptr;
+	COutsideLoad *m_pLoader = nullptr;
 	CSubDlgMain *m_pMain = nullptr;
-	CComboBox *m_pCmbSel = nullptr;
+
+	int OnSimpleThreadLoopRun(int nID);
+
+	CString &MakeScript(int nIndex = 0);
 
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
-	enum { IDD = IDD_DIALOG_PRODUCT };
+	enum { IDD = IDD_DIALOG_OUTLOAD };
 #endif
 
 protected:

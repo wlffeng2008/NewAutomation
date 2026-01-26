@@ -173,95 +173,16 @@ BOOL CSubDlgMain::OnInitDialog()
 	m_pDlgPSO->Create(this);
 	m_pDlgPSO->m_pMain = this;
 
+	StartThread(0);
+	StartThread(1);
+	StartThread(2);
+	StartThread(3);
+	StartThread(4);
+
 	return TRUE;
 }
 
-
-void CSubDlgMain::OnTimer(UINT_PTR nIDEvent)
-{
-	if (nIDEvent == 1 && controller)
-	{
-		{
-			int nAxis = 0;
-			Automation1StatusConfig statusConfig;
-			Automation1_StatusConfig_Create(&statusConfig);
-
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisFault, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramVelocityFeedback, 0);
-
-			double result[10];
-			if (Automation1_Status_GetResults(controller, statusConfig, result, 5))
-			{
-				SetDlgItemFloat(IDC_STATIC_POSX, result[0],4);
-				SetDlgItemFloat(IDC_STATIC_SPEEDX, result[4],4);
-				m_dbXPos = result[0];
-
-				CLabel *pSTLab = GetMyLabel(IDC_STATIC_ALARMX);
-				if (result[3] > 0)
-					pSTLab->SetTextColor(RGB(255, 0, 0));
-				else
-					pSTLab->SetTextColor(RGB(0, 255, 0));
-
-				bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
-				//TRACE("Enabled: %s\n", isEnabled ? "true" : "false");
-
-
-				bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
-				//TRACE("Homed: %s\n", isHomed ? "true" : "false");
-
-				bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
-				bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
-				//TRACE("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
-			}
-			Automation1_StatusConfig_Destroy(statusConfig);
-		}
-
-		{
-			int nAxis = 1;
-			Automation1StatusConfig statusConfig;
-			Automation1_StatusConfig_Create(&statusConfig);
-
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisFault, 0);
-			Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramVelocityFeedback, 0);
-
-			double result[10];
-			if (Automation1_Status_GetResults(controller, statusConfig, result, 5))
-			{
-				SetDlgItemFloat(IDC_STATIC_POSY, result[0],4);
-				SetDlgItemFloat(IDC_STATIC_SPEEDY, result[4], 4);
-				m_dbYPos = result[0];
-				CLabel *pSTLab = GetMyLabel(IDC_STATIC_ALARMY);
-				if (result[3] > 0)
-					pSTLab->SetTextColor(RGB(255, 0, 0));
-				else
-					pSTLab->SetTextColor(RGB(0, 255, 0));
-
-				bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
-				//TRACE("Enabled: %s\n", isEnabled ? "true" : "false");
-
-
-				bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
-				//TRACE("Homed: %s\n", isHomed ? "true" : "false");
-
-				bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
-				bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
-				//TRACE("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
-			}
-			Automation1_StatusConfig_Destroy(statusConfig);
-		}
-	}
-
-	CDialogEx::OnTimer(nIDEvent);
-}
-
-
-bool taskCallback(Automation1TaskCallbackArguments callbackArguments, Automation1TaskCallbackReturn callbackReturn)
+static bool taskCallback(Automation1TaskCallbackArguments callbackArguments, Automation1TaskCallbackReturn callbackReturn)
 {
 	TRACE("taskCallback......\n");
 	// Call the Automation1_Task_CallbackGetArguments() function one time to get the size of each array.
@@ -326,6 +247,152 @@ bool taskCallback(Automation1TaskCallbackArguments callbackArguments, Automation
 	return true;
 }
 
+int CSubDlgMain::OnSimpleThreadLoopRun(int nID)
+{
+	switch (nID)
+	{
+	case 0:
+
+		for (;;)
+		{
+			SimpleWait(0);
+
+			CheckDlgButton(IDC_CHECK_RUN, FALSE);
+			if (IsDlgButtonChecked(IDC_CHECK_CONNECT))
+			{
+				CString strUser = GetDlgItemTextEx(IDC_EDIT_USER);
+				CString strPWd = GetDlgItemTextEx(IDC_EDIT_PWORD);
+				CString strIP = GetDlgItemTextEx(IDC_EDIT_HOSTIP);
+				BOOL bRet = Automation1_ConnectWithHostAndUser(CW2A(strIP), CW2A(strUser), CW2A(strPWd), &controller);
+				if (bRet)
+				{
+					//Automation1_Controller_Start(controller);
+					if (!Automation1_Task_CallbackRegister(controller, 1, 1, taskCallback)) {
+						TRACE("Automation1_Task_CallbackRegister FAILED\n");
+					}
+
+					CheckDlgButton(IDC_CHECK_RUN, TRUE);
+					CheckDlgButton(IDC_CHECKENABLEX, TRUE);
+					CheckDlgButton(IDC_CHECKENABLEY, TRUE);
+					SendCmdMsg(IDC_CHECKENABLEX);
+					SendCmdMsg(IDC_CHECKENABLEY);
+				}
+			}
+			else
+			{
+				if (controller)
+				{
+					Automation1_Controller_Stop(controller);
+					Automation1_Disconnect(controller);
+					controller = nullptr;
+				}
+				CheckDlgButton(IDC_CHECKENABLEX, false);
+				CheckDlgButton(IDC_CHECKENABLEY, false);
+				CheckDlgButton(IDC_CHECK_RUN, false);
+			}
+			SetDlgItemText(IDC_STATIC_STATUS, controller ? _T("已连接") : _T("未连接"));
+			SetDlgItemColor(IDC_STATIC_STATUS, controller ? RGB(0, 255, 0) : RGB(255, 0, 0));
+			SendCmdMsg(IDC_CHECK_RUN);
+			SaveLoadSetting(true);
+		}
+		break;
+	case 1:
+	{
+		for (;;)
+		{
+			{
+				int nAxis = 0;
+				Automation1StatusConfig statusConfig;
+				Automation1_StatusConfig_Create(&statusConfig);
+
+				Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
+				Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
+				Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
+				Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisFault, 0);
+				Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramVelocityFeedback, 0);
+
+				double result[10];
+				if (Automation1_Status_GetResults(controller, statusConfig, result, 5))
+				{
+					SetDlgItemFloat(IDC_STATIC_POSX, result[0],4);
+					SetDlgItemFloat(IDC_STATIC_SPEEDX, result[4],4);
+					m_dbXPos = result[0];
+
+					CLabel *pSTLab = GetMyLabel(IDC_STATIC_ALARMX);
+					if (result[3] > 0)
+						pSTLab->SetTextColor(RGB(255, 0, 0));
+					else
+						pSTLab->SetTextColor(RGB(0, 255, 0));
+
+					bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
+					//TRACE("Enabled: %s\n", isEnabled ? "true" : "false");
+
+
+					bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
+					//TRACE("Homed: %s\n", isHomed ? "true" : "false");
+
+					bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
+					bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
+					//TRACE("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
+				}
+				Automation1_StatusConfig_Destroy(statusConfig);
+			}
+
+			{
+				int nAxis = 1;
+				Automation1StatusConfig statusConfig;
+				Automation1_StatusConfig_Create(&statusConfig);
+
+				Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramPositionFeedback, 0);
+				Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_DriveStatus, 0);
+				Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisStatus, 0);
+				Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_AxisFault, 0);
+				Automation1_StatusConfig_AddAxisStatusItem(statusConfig, nAxis, Automation1AxisStatusItem_ProgramVelocityFeedback, 0);
+
+				double result[10];
+				if (Automation1_Status_GetResults(controller, statusConfig, result, 5))
+				{
+					SetDlgItemFloat(IDC_STATIC_POSY, result[0],4);
+					SetDlgItemFloat(IDC_STATIC_SPEEDY, result[4], 4);
+					m_dbYPos = result[0];
+					CLabel *pSTLab = GetMyLabel(IDC_STATIC_ALARMY);
+					if (result[3] > 0)
+						pSTLab->SetTextColor(RGB(255, 0, 0));
+					else
+						pSTLab->SetTextColor(RGB(0, 255, 0));
+
+					bool isEnabled = (Automation1DriveStatus_Enabled & (int64_t)result[1]) == Automation1DriveStatus_Enabled;
+					//TRACE("Enabled: %s\n", isEnabled ? "true" : "false");
+
+
+					bool isHomed = (Automation1AxisStatus_Homed & (int64_t)result[2]) == Automation1AxisStatus_Homed;
+					//TRACE("Homed: %s\n", isHomed ? "true" : "false");
+
+					bool calibrationEnabled1D = (Automation1AxisStatus_CalibrationEnabled1D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled1D;
+					bool calibrationEnabled2D = (Automation1AxisStatus_CalibrationEnabled2D & (int64_t)result[2]) == Automation1AxisStatus_CalibrationEnabled2D;
+					//TRACE("Calibration State: %s\n", (calibrationEnabled1D || calibrationEnabled2D) ? "true" : "false");
+				}
+				Automation1_StatusConfig_Destroy(statusConfig);
+			}
+			Sleep(20);
+		}
+	}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+
+void CSubDlgMain::OnTimer(UINT_PTR nIDEvent)
+{
+	if (nIDEvent == 1 && controller)
+	{
+	}
+
+	CDialogEx::OnTimer(nIDEvent);
+}
 
 BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 {
@@ -333,44 +400,7 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 	switch (wParam)
 	{
 	case IDC_CHECK_CONNECT:
-		CheckDlgButton(IDC_CHECK_RUN, FALSE);
-		if (IsDlgButtonChecked(IDC_CHECK_CONNECT))
-		{
-			CString strUser=GetDlgItemTextEx(IDC_EDIT_USER);
-			CString strPWd=GetDlgItemTextEx(IDC_EDIT_PWORD);
-			CString strIP=GetDlgItemTextEx(IDC_EDIT_HOSTIP);
-			BOOL bRet = Automation1_ConnectWithHostAndUser(CW2A(strIP), CW2A(strUser), CW2A(strPWd), &controller);
-			if (bRet)
-			{
-				//Automation1_Controller_Start(controller);
-				if (!Automation1_Task_CallbackRegister(controller, 1, 1, taskCallback)) { 
-					TRACE("Automation1_Task_CallbackRegister FAILED\n");
-				}
-
-				CheckDlgButton(IDC_CHECK_RUN, TRUE);
-				CheckDlgButton(IDC_CHECKENABLEX, TRUE);
-				CheckDlgButton(IDC_CHECKENABLEY, TRUE);
-				SendCmdMsg(IDC_CHECKENABLEX);
-				SendCmdMsg(IDC_CHECKENABLEY);
-			}
-		}
-		else
-		{
-			if (controller)
-			{
-				Automation1_Controller_Stop(controller);
-				Automation1_Disconnect(controller);
-				controller = nullptr;
-			}
-			CheckDlgButton(IDC_CHECKENABLEX, false);
-			CheckDlgButton(IDC_CHECKENABLEY, false);
-			CheckDlgButton(IDC_CHECK_RUN, false);
-		}
-		SetDlgItemText(IDC_STATIC_STATUS, controller ? _T("已连接") : _T("未连接"));
-		SetDlgItemColor(IDC_STATIC_STATUS, controller ? RGB(0, 255, 0):RGB(255, 0, 0));
-		SendCmdMsg(IDC_CHECK_RUN);
-		SaveLoadSetting(true);
-
+		SimpleFire(0);
 		break;
 
 	case IDC_CHECK_RUN:

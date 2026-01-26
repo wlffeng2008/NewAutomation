@@ -17,6 +17,9 @@ public:
 	double m_dbYPos = 0;
 
 	CDlgPSOEdit *m_pDlgPSO=nullptr;
+
+	int OnSimpleThreadLoopRun(int nID);
+
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_DIALOG_MAIN };

@@ -260,9 +260,23 @@ BOOL CNewAutomationDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 	case IDC_BUTTON5: ShowSubDlg(4); break;
 	case IDC_BUTTON6: ShowSubDlg(5); break;
 	case IDC_BUTTON7: ShowSubDlg(6); break;
+	case 9981: 
+	{
+		if (!m_pOut)
+		{
+			m_pOut = new COutloadDlg();
+			m_pOut->Create(this);
+			m_pOut->m_pMain = m_pDlgMn;
+		}
+		m_pOut->Show();
+		//COutloadDlg dlg;
+		//dlg.DoModal();
+	}
+		return TRUE;
 	default:
 		break;
 	}
+
 	return CDialogEx::OnCommand(wParam, lParam);
 }
 

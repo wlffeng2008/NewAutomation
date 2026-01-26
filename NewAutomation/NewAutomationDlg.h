@@ -19,6 +19,9 @@
 #include "SubDlgConfig.h"
 #include "SubDlgWorkinfo.h"
 
+#include "OutloadDlg.h"
+
+
 // CNewAutomationDlg dialog
 class CNewAutomationDlg : public CDialogEx
 {
@@ -33,6 +36,7 @@ public:
 	CSubDlgCalibration *m_pDlgCl = nullptr;
 	CSubDlgConfig *m_pDlgCf = nullptr;
 	CSubDlgWorkinfo *m_pDlgWi = nullptr;
+	COutloadDlg *m_pOut = nullptr;
 
 	void ShowSubDlg(int nIndex=0);
 

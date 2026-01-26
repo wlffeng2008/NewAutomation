@@ -1,6 +1,12 @@
 #pragma once
 
 
+inline double strToDouble(LPCTSTR lpValue);
+inline CString& doubleToStr(double value);
+
+BOOL SaveTextAsUTF8(const CString&strText, const CString&strFile);
+CString GetLargeText(CRichEditCtrl* richEdit);
+
 class CLoader
 {
 public:
@@ -12,12 +18,18 @@ public:
 	int GetCount();
 	int GetType();
 	CString & ToArray();
+
+	void  SetOffset(double x,double y);
+
 private:
 	double *m_buf=nullptr;
 	int m_nType=0;  // X Y
 	int m_nIndex=0; // 0 1 2 3 ........
 	double m_dbStart=0;
 	int m_nCount=0;
+
+	double m_offsetX = 0;
+	double m_offsetY = 0;
 };
 
 class COutsideLoad
