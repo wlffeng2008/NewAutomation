@@ -1,0 +1,153 @@
+// ..................................................X-axis PSO ...........................................
+
+#define NUM_DISTANCES 20     // Number of  PSO Points PSO 點數數量
+#define NUM_Y_POSITIONS 20  // Number of Y-axis positions to Step X軸位置的步進數量
+
+program
+    // Axis definitions
+    var $X_axis as axis = X1
+    var $Y_axis as axis = Y1
+	var $isXHomed as real                                      // X1轴回零
+	var $isYHomed as real                                      // //X1轴回零
+	$isXHomed = (StatusGetAxisItem($X_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
+	$isYHomed = (StatusGetAxisItem($Y_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
+	
+    
+    // X-axis PSO variables
+    var $distances[NUM_DISTANCES] as real
+    var $posStart as real = 0.000
+    var $posEnd as real = 240.000
+    
+	//........................................................................................................................
+    var $Y_positions[NUM_Y_POSITIONS] as real
+    var $Y_speed as real = 100
+    var $y_index as integer
+	
+    // .........................................................................................................................................
+    Enable([$X_axis, $Y_axis])
+	if StatusGetAxisItem($Y_axis,AxisStatusItem.AxisStatus,AxisStatus.Homed) != $isYHomed       // 检查Y1轴状态是否回零
+	Home($Y_axis)
+	end
+	if StatusGetAxisItem($X_axis,AxisStatusItem.AxisStatus,AxisStatus.Homed) != $isXHomed       // // 检查X1轴状态是否回零
+	Home($X_axis)
+	end
+	// .........................................................................................................................................
+    SetupTaskTargetMode(TargetMode.Absolute)
+    
+    // Define Y-axis positions (replace with  specific positions) 定义Y轴位置移动（替换为具体位置）
+    $Y_positions[0] = 9
+    $Y_positions[1] = 12
+    $Y_positions[2] = 30
+    $Y_positions[3] = 17      // Y轴将移动至此处指定的位置
+    $Y_positions[4] = 10
+    $Y_positions[5] = 20
+    $Y_positions[6] = 30
+    $Y_positions[7] = 45
+    $Y_positions[8] = 55
+    $Y_positions[9] = 75
+    $Y_positions[10] = 114
+	$Y_positions[11] = 105
+	$Y_positions[12] = 90
+	$Y_positions[13] = 80
+	$Y_positions[14] = 110
+	$Y_positions[15] = 116
+	$Y_positions[16] = 98
+	$Y_positions[17] = 130
+	$Y_positions[18] = 84
+	$Y_positions[19] = 100
+    
+    
+    
+    // Loop through each Y-axis position  遍历每个Y轴位置
+    for $y_index = 0 to NUM_Y_POSITIONS - 1
+        
+        // Move Y-axis to the specified position (direct move from current position) 将Y轴移动至指定位置（从当前位置直接移动）
+        MoveAbsolute($Y_axis, $Y_positions[$y_index], $Y_speed)
+        WaitForMotionDone($Y_axis)
+        
+        // Wait a moment for Y-axis to settle 请稍等片刻，待Y轴稳定
+        Dwell(0.100)
+        
+        // ---------------------------------------------------
+        // X-AXIS PSO SCAN ROUTINE X轴粒子群优化扫描程序
+        // ---------------------------------------------------
+        // Move X to start position 将X轴移动至起始位置
+        MoveAbsolute($X_axis, $posStart, 100)
+        WaitForMotionDone($X_axis)
+        
+        // Configure PSO 配置 PSO
+        PsoReset($X_axis)
+        PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4ePrimaryFeedback])
+        
+        // Configure distance events 配置距离事件
+        CriticalSectionStart()
+        $distances[0] = UnitsToCounts($X_axis, 0.000) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[1] = UnitsToCounts($X_axis, 0.500) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[2] = UnitsToCounts($X_axis, 1.000) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[3] = UnitsToCounts($X_axis, 1.500) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[4] = UnitsToCounts($X_axis, 2.000) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[5] = UnitsToCounts($X_axis, 2.500) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[6] = UnitsToCounts($X_axis, 3.000) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[7] = UnitsToCounts($X_axis, 3.500) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[8] = UnitsToCounts($X_axis, 4.000) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[9] = UnitsToCounts($X_axis, 4.500) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[10] = UnitsToCounts($X_axis, 5.000) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[11] = UnitsToCounts($X_axis, 5.500) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[12] = UnitsToCounts($X_axis, 6.000) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[13] = UnitsToCounts($X_axis, 6.500) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[14] = UnitsToCounts($X_axis, 7.000) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[15] = UnitsToCounts($X_axis, 7.500) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[16] = UnitsToCounts($X_axis, 8.100) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[17] = UnitsToCounts($X_axis, 8.500) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[18] = UnitsToCounts($X_axis, 9.000) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        $distances[19] = UnitsToCounts($X_axis, 9.500) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+        CriticalSectionEnd()
+		
+	//Write PSO distance positions to drive 将PSO距离位置写入驱动器
+        DriveArrayWrite($X_axis, $distances, 0, NUM_DISTANCES, DriveArrayType.PsoDistanceEventDistances)
+        PsoDistanceConfigureArrayDistances($X_axis, 0, NUM_DISTANCES, false)
+        
+        // Configure PSO waveform 配置PSO波形
+        PsoWaveformConfigureMode($X_axis, PsoWaveformMode.Pulse)
+        PsoWaveformConfigurePulseFixedTotalTime($X_axis, 5000)
+        PsoWaveformConfigurePulseFixedOnTime($X_axis, 2000)
+        PsoWaveformConfigurePulseFixedCount($X_axis, 2)
+        PsoWaveformApplyPulseConfiguration($X_axis)
+        
+        // Enable PSO functions 启用PSO功能
+        PsoDistanceCounterOn($X_axis)
+        PsoDistanceEventsOn($X_axis)
+        PsoWaveformOn($X_axis)
+        
+        // Configure PSO output 配置PSO输出
+        PsoOutputConfigureSource($X_axis, PsoOutputSource.Waveform)
+        PsoOutputConfigureOutput($X_axis, PsoOutputPin.iXC4eDedicatedOutput)
+        
+        // Perform X-axis scan with PSO 执行基于粒子群优化算法的X轴扫描
+        MoveLinear($X_axis, $posEnd, 50)
+        WaitForMotionDone($X_axis)
+        
+        // Disable PSO functions 禁用PSO功能
+        PsoWaveformOff($X_axis)
+        PsoDistanceCounterOff($X_axis)
+        PsoDistanceEventsOff($X_axis)
+        
+        // Return X to start position  将X轴返回起始位置
+        MoveAbsolute($X_axis, $posStart, 100)
+        WaitForMotionDone($X_axis)
+   
+        
+        // Add a small dwell between Y positions (optional)
+        if $y_index < NUM_Y_POSITIONS - 1
+            Dwell(0.1)   // 停留时间
+        end
+        
+    end  // This closes the for loop 这结束了 for 循环
+    
+    
+    // Only return to starting position at the very end of the loop 仅在循环结束时返回起始位置
+    MoveAbsolute($Y_axis, 0, $Y_speed)
+    WaitForMotionDone($Y_axis)
+    
+    
+end

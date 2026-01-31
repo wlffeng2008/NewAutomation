@@ -296,10 +296,12 @@ int CSubDlgMain::OnSimpleThreadLoopRun(int nID)
 			SaveLoadSetting(true);
 		}
 		break;
+
 	case 1:
 	{
 		for (;;)
 		{
+			if(controller)
 			{
 				int nAxis = 0;
 				Automation1StatusConfig statusConfig;
@@ -338,6 +340,7 @@ int CSubDlgMain::OnSimpleThreadLoopRun(int nID)
 				Automation1_StatusConfig_Destroy(statusConfig);
 			}
 
+			if (controller)
 			{
 				int nAxis = 1;
 				Automation1StatusConfig statusConfig;
@@ -519,7 +522,7 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 		{
 			if (MessageBox(CString(_T("确定运行以下脚本吗？\n"))+dlg.GetPathName(), _T("提示"), MB_ICONQUESTION | MB_YESNO) == IDYES)
 			{
-				const char *strLoad = "manul.ascript";
+				const char *strLoad = "manual.ascript";
 				Automation1_Files_Upload(controller,CW2A(dlg.GetPathName()), strLoad);
 				Automation1_Task_ProgramLoad(controller, 1, strLoad);
 				Automation1_Task_ProgramRun(controller, 1, strLoad);
@@ -530,6 +533,9 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 
 	case 9981:
 	{
+		RunTask(_T("tmp.ascript"));
+		break;
+
 		const char *strLoad = "tmp.ascript";
 		CString strFile = GetCurrentPath() + _T("\\tmp.ascript");
 		Automation1_Files_Upload(controller, CW2A(strFile), strLoad);
@@ -540,6 +546,9 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 
 	case 9982:
 	{
+		RunTask(_T("writefile.ascript"));
+		break;
+
 		const char *strLoad = "writefile.ascript";
 		CString strFile = GetCurrentPath() + _T("\\writefile.ascript");
 		Automation1_Files_Upload(controller, CW2A(strFile), strLoad);
@@ -558,6 +567,32 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 	}
 
 	return CDialogEx::OnCommand(wParam, lParam);
+}
+
+BOOL  CSubDlgMain::RunTask(LPCTSTR lpszTaskName, LPCTSTR lpszScriptFile)
+{
+	if (!controller)
+		return FALSE;
+
+	static char szName[1024] = { 0 };
+	strcpy_s(szName, CW2A(lpszTaskName));
+
+	CString strFile(lpszScriptFile);
+	if (strFile.IsEmpty())
+	{
+		strFile = GetCurrentPath() + lpszTaskName;
+	}
+	else
+	{
+		if (strFile.Find(_T(":")) <= 0)
+			strFile = GetCurrentPath() + lpszScriptFile;
+	}
+
+	Automation1_Task_ProgramStop(controller, 1, 100);
+	Automation1_Files_Upload(controller, CW2A(strFile), szName);
+	Automation1_Task_ProgramLoad(controller, 1, szName);
+	Automation1_Task_ProgramRun(controller, 1, szName);
+	return TRUE;
 }
 
 BOOL CSubDlgMain::PreTranslateMessage(MSG* pMsg)

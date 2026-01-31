@@ -20,6 +20,8 @@ public:
 
 	int OnSimpleThreadLoopRun(int nID);
 
+	BOOL RunTask(LPCTSTR lpszTaskName,LPCTSTR lpszScriptFile=nullptr);
+
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_DIALOG_MAIN };

@@ -31,6 +31,128 @@ BEGIN_MESSAGE_MAP(COutloadDlg, CDialogEx)
 END_MESSAGE_MAP()
 
 
+static CString  strCallFile(R"(
+
+program
+    // Axis definitions
+    var $X_axis as axis = X1
+    var $Y_axis as axis = Y1
+	var $isXHomed as real                                      // X1轴回零
+	var $isYHomed as real                                      // //X1轴回零
+	$isXHomed = (StatusGetAxisItem($X_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
+	$isYHomed = (StatusGetAxisItem($Y_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
+	
+    
+    // X-axis PSO variables
+    var $posStart as real = 0.000
+    var $posEnd as real = 520.000
+    
+	//...........................................
+    var $Y_speed as real = 100
+    var $y_index as integer
+	
+    // .........................................................................................................................................
+    Enable([$X_axis, $Y_axis])
+	if StatusGetAxisItem($Y_axis,AxisStatusItem.AxisStatus,AxisStatus.Homed) != $isYHomed       // 检查Y1轴状态是否回零
+	Home($Y_axis)
+	end
+	if StatusGetAxisItem($X_axis,AxisStatusItem.AxisStatus,AxisStatus.Homed) != $isXHomed       // // 检查X1轴状态是否回零
+	Home($X_axis)
+	end
+	// .........................................................................................................................................
+    SetupTaskTargetMode(TargetMode.Absolute)
+	
+	var $type as integer
+	var $count as integer
+	var $index as integer
+	var $start as real
+	var $offset as real = 260 
+	var $fileHandle as handle
+	var $R_positions[5000] as real // will read from file
+    var $distances[5000] as real
+	
+	var $fileName as string = "%--filename--%"
+	
+	$fileHandle = FileOpenBinary($fileName, FileMode.Read)
+	
+	$type = FileBinaryReadUInt32($fileHandle)  // type
+	$count = FileBinaryReadUInt32($fileHandle) // count
+	$start = FileBinaryReadFloat64($fileHandle)// start
+	FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)
+	FileBinaryReadFloat64Array($fileHandle, $R_positions, 20)
+	
+	FileClose($fileHandle)
+	
+	MoveAbsolute($Y_axis, $start, $Y_speed)
+    WaitForMotionDone($Y_axis)
+        
+    // Wait a moment for Y-axis to settle 请稍等片刻，待Y轴稳定
+     Dwell(0.100)
+	
+	MoveAbsolute($X_axis, $R_positions[0] + $offset  -2, 100)
+    WaitForMotionDone($X_axis)
+        
+    // Configure PSO 配置 PSO
+    PsoReset($X_axis)
+	
+	if $type == 0
+    	PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4ePrimaryFeedback])
+	end
+	
+	if $type == 1
+		DriveEncoderOutputConfigureInput($Y_axis, EncoderOutputChannel.SyncPortB, EncoderInputChannel.PrimaryEncoder)
+		DriveEncoderOutputConfigureDivider($Y_axis, EncoderOutputChannel.SyncPortB, 1)   // 1: DIGITAL ENCODER 2: ANALOG ENCODER
+		DriveEncoderOutputOn($Y_axis, EncoderOutputChannel.SyncPortB)
+		PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4eSyncPortA]) 
+	end
+		
+	CriticalSectionStart()
+		for $index =0 to $count - 1
+        	$distances[$index] = UnitsToCounts($X_axis, $R_positions[$index] + $offset) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+		end
+    CriticalSectionEnd()
+		
+        DriveArrayWrite($X_axis, $distances, 0, $count, DriveArrayType.PsoDistanceEventDistances)
+        PsoDistanceConfigureArrayDistances($X_axis, 0, $count, false)
+        
+        // Configure PSO waveform 配置PSO波形
+        PsoWaveformConfigureMode($X_axis, PsoWaveformMode.Pulse)
+        PsoWaveformConfigurePulseFixedTotalTime($X_axis, 5000)
+        PsoWaveformConfigurePulseFixedOnTime($X_axis, 2000)
+        PsoWaveformConfigurePulseFixedCount($X_axis, 2)
+        PsoWaveformApplyPulseConfiguration($X_axis)
+        
+        // Enable PSO functions 启用PSO功能
+        PsoDistanceCounterOn($X_axis)
+        PsoDistanceEventsOn($X_axis)
+        PsoWaveformOn($X_axis)
+        
+        // Configure PSO output 配置PSO输出
+        PsoOutputConfigureSource($X_axis, PsoOutputSource.Waveform)
+        PsoOutputConfigureOutput($X_axis, PsoOutputPin.iXC4eDedicatedOutput)
+        
+		if $type == 0
+        // Perform X-axis scan with PSO 执行基于粒子群优化算法的X轴扫描
+        MoveLinear($X_axis, $R_positions[$count-1], 100)
+        WaitForMotionDone($X_axis)
+		end
+		
+		if $type == 1
+		    // Perform X-axis scan with PSO
+        	MoveLinear($Y_axis, $R_positions[$count-1], 100)
+        	WaitForMotionDone($Y_axis)
+		end
+        
+        // Disable PSO functions 禁用PSO功能
+        PsoWaveformOff($X_axis)
+        PsoDistanceCounterOff($X_axis)
+        PsoDistanceEventsOff($X_axis)
+	
+end
+
+)");
+
+
 // COutloadDlg message handlers
 BOOL COutloadDlg::OnInitDialog()
 {
@@ -52,47 +174,6 @@ BOOL COutloadDlg::OnInitDialog()
 
 	return TRUE;
 }
-/*
-
-int nLoadCount = GetDlgItemInt(IDC_COMBO_OUTSIZE);
-int nLoadStart = GetDlgItemInt(IDC_COMBO_START);
-
-for (int i = 0; i < nLoadCount; i++)
-{
-int nToLoad = i + nLoadStart;
-CLoader *pLoad = m_pLoader->GetData(nToLoad);
-int nPosCount = pLoad->GetCount();
-double dbStart = pLoad->GetStart();
-int nType = pLoad->GetType();
-
-CString strFile;
-strFile.Format(_T("/postions-%d.rd"), nToLoad);
-CString strScript;
-strScript.Format(_T(R"(
-program
-
-var $fileHandle as handle
-var $positions[%d] as real = %s
-
-$fileHandle = FileOpenBinary("%s", FileMode.Overwrite)
-
-FileBinaryWriteUInt32($fileHandle, %d) // type
-FileBinaryWriteUInt32($fileHandle, %d) // count
-FileBinaryWriteFloat64($fileHandle, %f)// start
-FileBinaryWriteFloat64Array($fileHandle, $positions, %d)
-
-FileClose($fileHandle)
-
-end )"), nPosCount, pLoad->ToArray(), strFile, nType, nPosCount, dbStart, nPosCount);
-
-strFile = GetCurrentPath() + _T("writefile.ascript");
-if (SaveTextAsUTF8(strScript, strFile))
-{
-m_pMain->SendCmdMsg(9982);
-}
-Sleep(500);
-}
-*/
 
 CString &COutloadDlg::MakeScript(int nIndex)
 {
@@ -106,14 +187,16 @@ CString &COutloadDlg::MakeScript(int nIndex)
 	int nType = pLoad->GetType();
 
 	CString strFile;
-	strFile.Format(_T("/postions-%d.rd"), nIndex);
+	strFile.Format(_T("/positions-%d.rd"), nIndex);
+
+	m_strFile = strFile;
 
 	strScript.Format(_T(R"(
 program
 
 	var $count as integer = %d
 	var $fileHandle as handle
-	var $positions[$count] as real = %s
+	var $positions[%d] as real = %s
 
 	$fileHandle = FileOpenBinary("%s", FileMode.Overwrite)
 
@@ -124,7 +207,7 @@ program
 
 	FileClose($fileHandle)
 
-end )"), nPosCount, pLoad->ToArray(), strFile, nType, Double2String(dbStart));
+end )"), nPosCount, nPosCount, pLoad->ToArray(), strFile, nType, Double2String(dbStart));
 
 	return strScript;
 }
@@ -179,17 +262,31 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 
 		if (SaveTextAsUTF8(strScript, strFile))
 		{
-			m_pMain->SendCmdMsg(9982);
-
-			CString stInfo;
-			stInfo.Format(_T("成功写入 %d 条（组）数据！"), 1);
-			MessageBox(_T("提示"), stInfo, MB_ICONINFORMATION);
+			if (m_pMain->RunTask(_T("writefile.ascript")))
+			{
+				if (IDYES == MessageBox(_T("成功写入 1 条（组）数据！\n需要立即运行(调用)吗?"), _T("提示"), MB_ICONINFORMATION | MB_YESNO))
+				{
+					CString  strCall = strCallFile;
+					strCall.Replace(_T("%--filename--%"), m_strFile);
+					SaveTextAsUTF8(strCall, _T("callfile.ascript"));
+					m_pMain->RunTask(_T("callfile.ascript"));
+				}
+			}
+			else
+			{
+				MessageBox(_T("控制器未连接，写入失败！"), _T("提示"), MB_ICONERROR);
+			}
 		}
 	}
 	break;
 
 	case IDC_BUTTON_SENDALL:
 	{
+		if (m_bSendAll)
+		{
+			m_bSendAll = FALSE;
+			break;
+		}
 		SimpleFire(0);
 		break;
 	}
@@ -208,26 +305,43 @@ int COutloadDlg::OnSimpleThreadLoopRun(int nID)
 		for (;;)
 		{
 			SimpleWait(0);
+			m_bSendAll = TRUE;
+			SetDlgItemText(IDC_BUTTON_SENDALL, _T("中断写入"));
 			CMyListCtrl *pList = GetMyListCtrl(IDC_LIST1);
 			int nCount = pList->GetItemCount();
 
-			int i = 0;
+			int nWrite = 0;
 			CString stInfo;
 			CString  strFile = GetCurrentPath() + _T("writefile.ascript");
-			for (i = 0; i < nCount; i++)
+			for (int i = 0; i < nCount; i++)
 			{
+				if(!m_bSendAll)
+					break;
 				CString strScript = MakeScript(i);
+
+				SetDlgItemText(IDC_RICHEDIT21, strScript);
 				if (SaveTextAsUTF8(strScript, strFile))
 				{
-					m_pMain->SendCmdMsg(9982);
+					if(!m_pMain->RunTask(_T("writefile.ascript")))
+						break;
+					nWrite++;
 				}
 				Sleep(200);
 				stInfo.Format(_T("正在写入: %d / %d"), i+1, nCount);
 				SetDlgItemText(IDC_STATIC_INFO,stInfo);
 			}
+			m_bSendAll = FALSE;
+			SetDlgItemText(IDC_BUTTON_SENDALL, _T("全部写入"));
 
-			stInfo.Format(_T("成功写入 %d 条（组）数据！"),i+1);
-			MessageBox(_T("提示"), stInfo, MB_ICONINFORMATION);
+			if (nWrite != nCount)
+			{
+				MessageBox(_T("控制器未连接，写入失败！"), _T("提示"), MB_ICONERROR);
+			}
+			else
+			{
+				stInfo.Format(_T("成功写入 %d 条（组）数据！"), nWrite);
+				MessageBox(stInfo, _T("提示"), MB_ICONINFORMATION);
+			}
 		}
 		break;
 	default:

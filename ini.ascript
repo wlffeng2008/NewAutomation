@@ -1,0 +1,43 @@
+program
+	// Write a value to the INI file. If the file, section, or key does not exist, they will be created.
+	var $iniFile as string = "ExampleIni.ini"
+	FileIniWriteValue($iniFile, "Section1", "Key1", "Value1")
+
+	// Write another key to the previous section.
+	FileIniWriteValue($iniFile, "Section1", "Key2", "Value2")
+
+	// Replace the value from the 1st key with a new value.
+	FileIniWriteValue($iniFile, "Section1", "Key1", "NewValue1")
+
+	// Read in the new values we just added. If the value was not added, the default string will be displayed.
+	AppMessageDisplay(FileIniReadValue($iniFile, "Section1", "Key1", "Section1-Key1 does not exist."))
+	AppMessageDisplay(FileIniReadValue($iniFile, "Section1", "Key2", "Section1-Key2 does not exist."))
+
+	// Create a new section-key and then write a value to it.
+	FileIniWriteValue($iniFile, "Section2", "Key1", "Hello, Ini File!")
+
+	// If the section exists in the INI file, the function will return 1.
+	$iglobal[0] = FileIniFindSection($iniFile, "Section2")
+	if $iglobal[0] == 1
+		AppMessageDisplay("Section2 exists.")
+	end
+
+	// Delete the only key from Section2. This will automatically delete Section2 because it will be empty.
+	$iglobal[0] = FileIniDeleteKey($iniFile, "Section2", "Key1")
+	if $iglobal[0] == 1
+		AppMessageDisplay("Section2-Key1 was deleted.")
+	end
+	$iglobal[0] = FileIniFindSection($iniFile, "Section2")
+	if $iglobal[0] == 0
+		AppMessageDisplay("Section2 was removed because it was empty.")
+	end
+
+	// Delete a key from Section1.
+	$iglobal[0] = FileIniDeleteKey($iniFile, "Section1", "Key1")
+	if $iglobal[0] == 1
+		AppMessageDisplay("Section1-Key1 was deleted.")
+	end
+	
+	// Try to read a value from a non-existent key.
+	AppMessageDisplay(FileIniReadValue($iniFile, "Section1", "Key1", "Section1-Key1 does not exist."))
+end

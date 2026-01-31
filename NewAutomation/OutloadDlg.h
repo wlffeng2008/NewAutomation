@@ -16,6 +16,8 @@ public:
 
 	int OnSimpleThreadLoopRun(int nID);
 
+	BOOL m_bSendAll = FALSE;
+	CString m_strFile;
 	CString &MakeScript(int nIndex = 0);
 
 // Dialog Data
