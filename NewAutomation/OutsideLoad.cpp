@@ -67,7 +67,7 @@ inline CString& doubleToStr(double value)
 CLoader::CLoader(int nIndex, int nType, double dbStart)
 {
 	CString strFile;
-	strFile.Format(_T("%s\\%s%d.rd"), s_strPath, nType == 0 ?_T("x"):_T("y"), nIndex);
+	strFile.Format(_T("%s\\%s%d.rd"), s_strPath, nType == 0 ?_T("y"):_T("x"), nIndex);
 	m_nIndex = nIndex;
 	m_nType = nType;
 	m_dbStart = dbStart;
@@ -121,7 +121,7 @@ void  CLoader::SetOffset(double x, double y)
 	m_offsetY = y;
 }
 
-double CLoader::GetStart() { return m_dbStart + (m_nType == 0 ? m_offsetY : m_offsetX); }
+double CLoader::GetStart() { return m_dbStart + (m_nType == 1 ? m_offsetY : m_offsetX); }
 
 int CLoader::GetCount() { return m_nCount; }
 
@@ -197,7 +197,7 @@ void COutsideLoad::LoadFile(LPCTSTR lpFile)
 				{
 					DFile.ReadString(strLine);
 					double dbStart = strToDouble(strLine);
-					m_data.Add(new CLoader(i, 0, dbStart));
+					m_data.Add(new CLoader(i, 1, dbStart));
 				}
 			}
 
@@ -209,7 +209,7 @@ void COutsideLoad::LoadFile(LPCTSTR lpFile)
 				{
 					DFile.ReadString(strLine);
 					double dbStart = strToDouble(strLine);
-					m_data.Add(new CLoader(i, 1, dbStart));
+					m_data.Add(new CLoader(i, 0, dbStart));
 				}
 			}
 		}
