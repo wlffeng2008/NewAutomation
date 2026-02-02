@@ -138,8 +138,6 @@ BOOL CNewAutomationDlg::OnInitDialog()
 	SetDlgItemPos2(m_pDlgCf, IDC_STATIC_FRAME);
 	SetDlgItemPos2(m_pDlgWi, IDC_STATIC_FRAME);
 
-	ShowSubDlg(0);
-
 	SetButtonIcon(IDC_BUTTON1, _T("Icon_1.png"));
 	SetButtonIcon(IDC_BUTTON2, _T("Icon_2.png"));
 	SetButtonIcon(IDC_BUTTON3, _T("Icon_3.png"));
@@ -160,6 +158,8 @@ BOOL CNewAutomationDlg::OnInitDialog()
 
 	MoveWindow(0,0,1024, 768);
 	CenterWindow();
+
+	ShowSubDlg(0);
 	return TRUE;  
 }
 

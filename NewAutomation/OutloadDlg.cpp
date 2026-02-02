@@ -56,7 +56,7 @@ program
 		Home($X_axis)
 	end
 	
-    SetupTaskTargetMode(TargetMode.Absolute)
+    SetupTaskTargetMode(TargetMode.Incremental)
 	
 	var $type as integer
 	var $count as integer
@@ -64,7 +64,7 @@ program
 	var $line as real
 	var $fileHandle as handle
 	var $R_positions[10000] as real // will read from file
-    var $distances[10000] as real
+    var $distances[10000] as real  
     var $file as integer
 	
 	for $file = $fileBegin to $fileEnd
@@ -84,10 +84,8 @@ program
 		//for $index = 0 to $count-1
 		//	$R_positions[$index]= $index *10
 		//end
-		var $adjust as real = 2
-		if $R_positions[0] > $R_positions[1]
-			$adjust *= -1
-		end
+
+		var $adjust as real = 0
 		var $posStart as real = $R_positions[0] - $adjust
 		var $posEnd as real = $R_positions[$count-1]  + $adjust
 	
@@ -179,6 +177,9 @@ end
 BOOL COutloadDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
+
+	m_pLoader = new COutsideLoad();
+
 	CMyListCtrl *pList = GetMyListCtrl(IDC_LIST1);
 	pList->InsertColumn(0, _T("±àºÅ"), 0, 60);
 	pList->InsertColumn(1, _T("ÀàÐÍ"), 0, 60);
@@ -186,21 +187,39 @@ BOOL COutloadDlg::OnInitDialog()
 
 	SetDlgItemFont(IDC_RICHEDIT21, 12, 400, _T("Fixedsys"));
 
-	SetDlgItemFloat(IDC_EDITX, 250);
-	SetDlgItemFloat(IDC_EDITY, 250);
-	SetDlgItemFloat(IDC_EDIT_SPEEDX, 100);
-	SetDlgItemFloat(IDC_EDIT_SPEEDY, 100);
-	SetDlgItemFloat(IDC_EDIT_TPLUSTIME, 5000);
-	SetDlgItemFloat(IDC_EDIT_PLUSDUR, 2000);
-	SetDlgItemFloat(IDC_EDIT_PLUSCOUNT, 2);
 	CheckDlgButton(IDC_CHECK_AUTORUN, 1);
-
-	m_pLoader = new COutsideLoad();
 
 	StartThread(0);
 	StartThread(1);
 
+	SaveLoadConfig(FALSE);
+
 	return TRUE;
+}
+
+void COutloadDlg::SaveLoadConfig(BOOL bToSave)
+{
+	CIniAX Set(_T("WorkConfig"));
+	if (bToSave)
+	{
+		Set.SetFloat(_T("ShiftX"), GetDlgItemFloat(IDC_EDITX));
+		Set.SetFloat(_T("ShiftY"), GetDlgItemFloat(IDC_EDITY));
+		Set.SetFloat(_T("SpeedX"), GetDlgItemFloat(IDC_EDIT_SPEEDX));
+		Set.SetFloat(_T("SpeedY"), GetDlgItemFloat(IDC_EDIT_SPEEDY));
+		Set.SetFloat(_T("TotalTime"), GetDlgItemFloat(IDC_EDIT_TPLUSTIME));
+		Set.SetFloat(_T("OnTime"), GetDlgItemFloat(IDC_EDIT_PLUSDUR));
+		Set.SetFloat(_T("PlusCount"), GetDlgItemFloat(IDC_EDIT_PLUSCOUNT));
+	}
+	else
+	{
+		SetDlgItemFloat(IDC_EDITX, Set.GetFloat(_T("ShiftX"), 50));
+		SetDlgItemFloat(IDC_EDITY, Set.GetFloat(_T("ShiftY"), 50));
+		SetDlgItemFloat(IDC_EDIT_SPEEDX, Set.GetFloat(_T("SpeedX"), 100));
+		SetDlgItemFloat(IDC_EDIT_SPEEDY, Set.GetFloat(_T("SpeedY"), 100));
+		SetDlgItemFloat(IDC_EDIT_TPLUSTIME, Set.GetFloat(_T("TotalTime"), 5000));
+		SetDlgItemFloat(IDC_EDIT_PLUSDUR, Set.GetFloat(_T("OnTime"), 2000));
+		SetDlgItemFloat(IDC_EDIT_PLUSCOUNT, Set.GetFloat(_T("PlusCount"), 2));
+	}
 }
 
 CString &COutloadDlg::MakeScript(int nIndex)
@@ -227,6 +246,7 @@ CString &COutloadDlg::MakeScript(int nIndex)
 	strScript.Format(_T(R"(
 program
 
+	CriticalSectionStart()
 	var $count as integer = %d
 	var $fileHandle as handle
 	var $positions[%d] as real = %s
@@ -239,6 +259,7 @@ program
 	FileBinaryWriteFloat64Array($fileHandle, $positions, $count)
 
 	FileClose($fileHandle)
+	CriticalSectionEnd()
 
 end )"), nPosCount, nPosCount, pLoad->ToArray(), strFile, nType, Double2String(dbStart));
 
@@ -249,6 +270,24 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 {
 	switch (LOWORD(wParam))
 	{
+	case IDC_CHECK_RETURN:
+	{
+		CRichEditCtrl *pEdit = (CRichEditCtrl*)GetDlgItem(IDC_RICHEDIT21);
+
+		if (IsDlgButtonChecked(IDC_CHECK_RETURN))
+		{
+			pEdit->ModifyStyle(0, WS_HSCROLL);
+			pEdit->SetTargetDevice(nullptr, 0);
+		}
+		else
+		{
+			pEdit->ModifyStyle(WS_HSCROLL, 0);
+			pEdit->SetTargetDevice(nullptr, 1);
+		}
+		pEdit->SetWindowPos(nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+		pEdit->Invalidate(TRUE);
+	}
+		break;
 	case IDC_BUTTON_OPEN:
 	{
 		CFileDialog  dlg(true, _T("txt"));
@@ -288,6 +327,7 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 			int nItem = pList->GetClickItem();
 			SetDlgItemText(IDC_RICHEDIT21, MakeScript(nItem));
 		}
+		SaveLoadConfig(TRUE);
 	}
 	break;
 

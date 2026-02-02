@@ -104,7 +104,7 @@ CString & CLoader::ToArray()
 	{
 		double value = m_buf[i];
 		if(m_nIndex % 2) value = m_buf[m_nCount-1-i];
-		value += (m_nType == 0 ? m_offsetY: m_offsetX);
+		value += (m_nType == 1 ? m_offsetY: m_offsetX);
 
 		strVal = doubleToStr(value);
 		strArray.Append(strVal);
@@ -121,7 +121,7 @@ void  CLoader::SetOffset(double x, double y)
 	m_offsetY = y;
 }
 
-double CLoader::GetStart() { return m_dbStart + (m_nType == 1 ? m_offsetY : m_offsetX); }
+double CLoader::GetStart() { return m_dbStart + (m_nType == 0 ? m_offsetY : m_offsetX); }
 
 int CLoader::GetCount() { return m_nCount; }
 

@@ -20,6 +20,8 @@ public:
 	CString m_strFile;
 	CString &MakeScript(int nIndex = 0);
 
+	void SaveLoadConfig(BOOL bToSave);
+
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_DIALOG_OUTLOAD };
