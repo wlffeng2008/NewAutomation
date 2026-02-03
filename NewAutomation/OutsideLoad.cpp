@@ -94,6 +94,44 @@ double CLoader::GetData(int nIndex)
 	return 0;
 }
 
+BYTE *CLoader::ToBinary(int &nLen)
+{
+	static BYTE Buf[20000] = { 0 };
+	static double TmpData[20000] = { 0 };
+
+	int nPos = 0;
+
+	int nType = GetType();
+	int nCount = GetCount();
+	double dbLine = GetStart();
+
+	memcpy(Buf + nPos, &nType, 4);
+	nPos += 4;
+
+	memcpy(Buf + nPos, &nCount, 4);
+	nPos += 4;
+
+	memcpy(Buf + nPos, &dbLine, 8);
+	nPos += 8;
+
+	for (int i = 0; i < m_nCount; i++)
+	{
+		double value = m_buf[i];
+		if (m_nIndex % 2)
+			value = m_buf[m_nCount - 1 - i];
+		value += (m_nType == 1 ? m_offsetY : m_offsetX);
+
+		TmpData[i] = value;
+	}
+
+	memcpy(Buf + nPos, TmpData, 8 * nCount);
+	nPos += 8 * nCount;
+
+	nLen = nPos;
+
+	return Buf;
+}
+
 CString & CLoader::ToArray()
 {
 	static CString strArray;
@@ -103,7 +141,8 @@ CString & CLoader::ToArray()
 	for (int i = 0; i < m_nCount; i++)
 	{
 		double value = m_buf[i];
-		if(m_nIndex % 2) value = m_buf[m_nCount-1-i];
+		if(m_nIndex % 2)
+			value = m_buf[m_nCount-1-i];
 		value += (m_nType == 1 ? m_offsetY: m_offsetX);
 
 		strVal = doubleToStr(value);

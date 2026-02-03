@@ -18,6 +18,7 @@ public:
 	int GetCount();
 	int GetType();
 	CString & ToArray();
+	BYTE *ToBinary(int &nLen);
 
 	void  SetOffset(double x,double y);
 

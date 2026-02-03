@@ -35,15 +35,6 @@ static CString  strCallFile(R"(
 program
     var $X_axis as axis = X1
     var $Y_axis as axis = Y1
-
-    var $Y_speed as real = %.2f
-    var $X_speed as real = %.2f
-	var $TotalTime as integer = %d
-	var $OnTime as integer = %d
-	var $FixedCount as integer = %d
-	var $fileBegin as integer = %d
-	var $fileEnd as integer = %d
-
 	var $isXHomed as real
 	var $isYHomed as real
 	$isXHomed = (StatusGetAxisItem($X_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
@@ -56,8 +47,15 @@ program
 		Home($X_axis)
 	end
 	
-    SetupTaskTargetMode(TargetMode.Incremental)
+    SetupTaskTargetMode(TargetMode.Absolute)
 	
+    var $Y_speed as real = %.2f
+    var $X_speed as real = %.2f
+	var $TotalTime as integer = %d
+	var $OnTime as integer = %d
+	var $FixedCount as integer = %d
+	var $fileBegin as integer = %d
+	var $fileEnd as integer = %d
 	var $type as integer
 	var $count as integer
 	var $index as integer
@@ -72,8 +70,11 @@ program
 		$fileHandle = FileOpenBinary($fileName, FileMode.Read)
 	
 		$type = FileBinaryReadUInt32($fileHandle)  // type
+		if $type > 1
+			continue
+		end
 		$count = FileBinaryReadUInt32($fileHandle) // count
-		$line = FileBinaryReadFloat64($fileHandle)// start
+		$line = FileBinaryReadFloat64($fileHandle) // line
 		FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)
 	
 		FileClose($fileHandle)
@@ -94,7 +95,7 @@ program
 			WaitForMotionDone($Y_axis)
 			Dwell(0.100)
 		
-			MoveAbsolute($X_axis, $posStart, $X_speed)
+			MoveAbsolute($X_axis, $posEnd - $posStart, $X_speed)
 			WaitForMotionDone($X_axis)	
 			Dwell(0.100)
 		end 
@@ -104,7 +105,7 @@ program
 			WaitForMotionDone($X_axis)
 			Dwell(0.100)
 		
-			MoveAbsolute($Y_axis, $posStart, $Y_speed)
+			MoveAbsolute($Y_axis, $posEnd - $posStart, $Y_speed)
 			WaitForMotionDone($Y_axis)	
 			Dwell(0.100)
 		end 
@@ -122,9 +123,13 @@ program
 			PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4eSyncPortA]) 
 		end
 		
+		var $increment as real = 0
 		CriticalSectionStart()
-			for $index =0 to $count - 1
-        		$distances[$index] = UnitsToCounts($X_axis, $R_positions[$index]) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+			for $index = 0 to $count - 1
+				if $index > 0
+					$increment = Abs ($R_positions[$index] - $R_positions[$index-1])
+				end
+        		$distances[$index] = UnitsToCounts($X_axis, $increment) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
 			end
 		CriticalSectionEnd()
 		
@@ -155,8 +160,7 @@ program
 		end
 	
 		if $type == 1
-			// Perform X-axis scan with PSO
-			AppMessageDisplay("将X轴移动至目标位置")
+			AppMessageDisplay("将Y轴移动至目标位置")
     		MoveLinear($Y_axis, $posEnd, $Y_speed)
     		WaitForMotionDone($Y_axis)
 		end
@@ -187,7 +191,7 @@ BOOL COutloadDlg::OnInitDialog()
 
 	SetDlgItemFont(IDC_RICHEDIT21, 12, 400, _T("Fixedsys"));
 
-	CheckDlgButton(IDC_CHECK_AUTORUN, 1);
+	CheckDlgButton(IDC_CHECK_AUTORUN, 0);
 
 	StartThread(0);
 	StartThread(1);
@@ -246,7 +250,6 @@ CString &COutloadDlg::MakeScript(int nIndex)
 	strScript.Format(_T(R"(
 program
 
-	CriticalSectionStart()
 	var $count as integer = %d
 	var $fileHandle as handle
 	var $positions[%d] as real = %s
@@ -255,11 +258,10 @@ program
 
 	FileBinaryWriteUInt32($fileHandle, %d)      // type
 	FileBinaryWriteUInt32($fileHandle, $count)  // count
-	FileBinaryWriteFloat64($fileHandle, %s)     // start
+	FileBinaryWriteFloat64($fileHandle, %s)     // line
 	FileBinaryWriteFloat64Array($fileHandle, $positions, $count)
 
 	FileClose($fileHandle)
-	CriticalSectionEnd()
 
 end )"), nPosCount, nPosCount, pLoad->ToArray(), strFile, nType, Double2String(dbStart));
 
@@ -305,8 +307,8 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 				int nPosCount = pLoad->GetCount();
 				double dbStart = pLoad->GetStart();
 				int nType = pLoad->GetType();
-				pList->InsertItem(i + 1, _T("0"));
-				pList->SetItemInt(i, 0, i + 1);
+				pList->InsertItem(i, _T("0"));
+				pList->SetItemInt(i, 0, i);
 
 				pList->SetItemInt(i, 1, nType);
 				pList->SetItemInt(i, 2, nPosCount);
@@ -389,8 +391,8 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 		int nCount = pList->GetItemCount();
 		CString  strCall = strCallFile;
 		strCall.Format(strCallFile, GetDlgItemFloat(IDC_EDIT_SPEEDX), GetDlgItemFloat(IDC_EDIT_SPEEDY),
-			GetDlgItemInt(IDC_EDIT_TPLUSTIME), GetDlgItemInt(IDC_EDIT_PLUSDUR), GetDlgItemInt(IDC_EDIT_PLUSCOUNT), 0, nCount - 1
-		);
+			GetDlgItemInt(IDC_EDIT_TPLUSTIME), GetDlgItemInt(IDC_EDIT_PLUSDUR), 
+			GetDlgItemInt(IDC_EDIT_PLUSCOUNT), 0, nCount - 1 );
 
 		CString strFile = GetCurrentPath() + _T("callAllFile.ascript");
 		SaveTextAsUTF8(strCall, strFile);
@@ -412,6 +414,98 @@ int COutloadDlg::OnSimpleThreadLoopRun(int nID)
 		for (;;)
 		{
 			SimpleWait(0);
+			{
+				m_bSendAll = TRUE;
+				CString strFile;
+				CString strInfo;
+				int nCount = m_pLoader->GetCount();
+				for (int i = 0; i < nCount; i++)
+				{
+					if (!m_bSendAll)
+						break;
+
+					CLoader *pLoad = m_pLoader->GetData(i);
+					pLoad->SetOffset(GetDlgItemFloat(IDC_EDITX), GetDlgItemFloat(IDC_EDITY));
+
+					strInfo.Format(_T("正在写入: %d / %d"), i + 1, nCount);
+					SetDlgItemText(IDC_STATIC_INFO, strInfo);
+					int nLen = 0;
+					BYTE *data = pLoad->ToBinary(nLen);
+					strFile.Format(_T("/positions-%d.rd"),i);
+					if(!m_pMain->WriteFile(strFile,data, nLen))
+					{
+						m_bSendAll = FALSE;
+						MessageBox(_T("控制器未连接，写入失败！"), _T("提示"), MB_ICONERROR);
+					}
+				}
+
+				if (!m_bSendAll)
+					continue;
+
+				m_bSendAll = FALSE;
+
+				SetDlgItemText(IDC_STATIC_INFO, _T("写入完成"));
+				strInfo.Format(_T("成功写入 %d 条（组）数据！\n需要立即运行(调用)吗?"), nCount);
+				if (IDYES == MessageBox(strInfo, _T("提示"), MB_ICONINFORMATION | MB_YESNO))
+				{
+
+					SendCmdMsg(IDC_BUTTON_RUNALL);
+				}
+				continue;
+			}
+
+			{
+				int nCount = m_pLoader->GetCount();
+				CString strTypeArr;
+				CString strLineArr;
+				CString strCountArr;
+				CString strDataArr;
+				strTypeArr.Format(_T("var $index as integer \nvar $good as integer = 1\nvar $typeArr[%d] as integer = ["), nCount);
+				strLineArr.Format(_T("var $lineArr[%d] as real = ["), nCount);
+				strCountArr.Format(_T("var $countArr[%d] as integer = ["), nCount);
+				strDataArr.Format(_T("var $dataArr[%d][10000] as real"), nCount);
+
+				for (int i = 0; i < nCount; i++)
+				{
+					CLoader *pLoad = m_pLoader->GetData(i);
+					int nPosCount = pLoad->GetCount();
+					double dbLine = pLoad->GetStart();
+					int nType = pLoad->GetType();
+
+					strTypeArr.Append(Double2String(nType));
+					strTypeArr.Append(_T(","));
+
+					strLineArr.Append(Double2String(dbLine));
+					strLineArr.Append(_T(","));
+
+					strCountArr.Append(Double2String(nPosCount));
+					strCountArr.Append(_T(","));
+
+					CString strData;
+					strData.Format(_T(R"(
+if $good == 1
+    var $temp%d[%d] as real = %s
+	for $index = 0 to %d - 1
+		$dataArr[%d][$index] = $temp%d[$index]
+    end
+end
+				)"),i, nPosCount, pLoad->ToArray(), nPosCount,i, i);
+					strDataArr += strData;
+				}
+
+				strTypeArr.TrimRight(',');
+				strLineArr.TrimRight(',');
+				strCountArr.TrimRight(',');
+				strTypeArr.Append(_T("]\n"));
+				strLineArr.Append(_T("]\n"));
+				strCountArr.Append(_T("]\n"));
+
+				CString strLast = strTypeArr + strLineArr + strCountArr + strDataArr;
+				SaveTextAsUTF8(strLast, _T("D:\\hurge.txt"));
+				continue;
+			}
+			
+
 			m_bSendAll = TRUE;
 			SetDlgItemText(IDC_BUTTON_SENDALL, _T("中断写入"));
 			CMyListCtrl *pList = GetMyListCtrl(IDC_LIST1);
@@ -419,7 +513,6 @@ int COutloadDlg::OnSimpleThreadLoopRun(int nID)
 
 			int nWrite = 0;
 			CString stInfo;
-			CString  strFile = GetCurrentPath() + _T("writefile.ascript");
 			for (int i = 0; i < nCount; i++)
 			{
 				if(!m_bSendAll)
@@ -428,23 +521,25 @@ int COutloadDlg::OnSimpleThreadLoopRun(int nID)
 				if(strScript.IsEmpty())
 					continue;
 
+				CString strTask;
+				strTask.Format(_T("writefile-%02d.ascript"), i % 10);
+				CString  strFile = GetCurrentPath() + strTask;
 				SetDlgItemText(IDC_RICHEDIT21, strScript);
 				if (SaveTextAsUTF8(strScript, strFile))
 				{
-					if(!m_pMain->RunTask(_T("writefile.ascript")))
+					if(!m_pMain->RunTask(strTask,nullptr,i % 10 + 1))
 						break;
 					nWrite++;
 				}
-				Sleep(20);
-				stInfo.Format(_T("正在写入: %d / %d"), i+1, nCount);
-				SetDlgItemText(IDC_STATIC_INFO,stInfo);
+				stInfo.Format(_T("正在写入: %d / %d"), i + 1, nCount);
+				SetDlgItemText(IDC_STATIC_INFO, stInfo);
+				Sleep(50);
 			}
 
 			if(m_bSendAll) SetDlgItemText(IDC_STATIC_INFO, _T("写入被取消"));
 
 			m_bSendAll = FALSE;
 			SetDlgItemText(IDC_BUTTON_SENDALL, _T("全部写入"));
-
 
 			if (nWrite != nCount)
 			{
@@ -457,7 +552,7 @@ int COutloadDlg::OnSimpleThreadLoopRun(int nID)
 				if (IDYES == MessageBox(stInfo, _T("提示"), MB_ICONINFORMATION | MB_YESNO))
 				{
 					SendCmdMsg(IDC_BUTTON_RUNALL);
-				};
+				}
 			}
 		}
 		break;

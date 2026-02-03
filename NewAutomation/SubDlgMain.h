@@ -20,7 +20,8 @@ public:
 
 	int OnSimpleThreadLoopRun(int nID);
 
-	BOOL RunTask(LPCTSTR lpszTaskName,LPCTSTR lpszScriptFile=nullptr);
+	BOOL RunTask(LPCTSTR lpszTaskName,LPCTSTR lpszScriptFile=nullptr,int nTaskId=1);
+	BOOL WriteFile(LPCTSTR lpszFileName ,void *data, int nLen);
 
 // Dialog Data
 #ifdef AFX_DESIGN_TIME

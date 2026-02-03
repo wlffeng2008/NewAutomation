@@ -569,7 +569,16 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 	return CDialogEx::OnCommand(wParam, lParam);
 }
 
-BOOL  CSubDlgMain::RunTask(LPCTSTR lpszTaskName, LPCTSTR lpszScriptFile)
+BOOL CSubDlgMain::WriteFile(LPCTSTR lpszFileName, void *data, int nLen)
+{
+	if (!controller)
+		return FALSE;
+	Automation1_Files_Delete(controller, CW2A(lpszFileName));
+	Automation1_Files_WriteBytes(controller,CW2A(lpszFileName), (BYTE *)data, nLen);
+	return true;
+}
+
+BOOL  CSubDlgMain::RunTask(LPCTSTR lpszTaskName, LPCTSTR lpszScriptFile,int nTaskId)
 {
 	if (!controller)
 		return FALSE;
@@ -588,10 +597,10 @@ BOOL  CSubDlgMain::RunTask(LPCTSTR lpszTaskName, LPCTSTR lpszScriptFile)
 			strFile = GetCurrentPath() + lpszScriptFile;
 	}
 
-	Automation1_Task_ProgramStop(controller, 1, 100);
+	Automation1_Task_ProgramStop(controller, nTaskId, 100);
 	Automation1_Files_Upload(controller, CW2A(strFile), szName);
-	Automation1_Task_ProgramLoad(controller, 1, szName);
-	Automation1_Task_ProgramRun(controller, 1, szName);
+	Automation1_Task_ProgramLoad(controller, nTaskId, szName);
+	Automation1_Task_ProgramRun(controller, nTaskId, szName);
 	return TRUE;
 }
 
