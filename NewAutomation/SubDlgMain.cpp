@@ -252,7 +252,9 @@ int CSubDlgMain::OnSimpleThreadLoopRun(int nID)
 	switch (nID)
 	{
 	case 0:
-
+		Sleep(1000);
+		CheckDlgButton(IDC_CHECK_CONNECT, true);
+		SendCmdMsg(IDC_CHECK_CONNECT);
 		for (;;)
 		{
 			SimpleWait(0);
@@ -578,10 +580,38 @@ BOOL CSubDlgMain::WriteFile(LPCTSTR lpszFileName, void *data, int nLen)
 	return true;
 }
 
-BOOL  CSubDlgMain::RunTask(LPCTSTR lpszTaskName, LPCTSTR lpszScriptFile,int nTaskId)
+BOOL CSubDlgMain::StopTask()
 {
 	if (!controller)
 		return FALSE;
+	if (IsDlgButtonChecked(IDC_CHECK_RUN))
+	{
+		CheckDlgButton(IDC_CHECK_RUN, FALSE);
+		SendCmdMsg(IDC_CHECK_RUN);
+	}
+
+	return true;
+}
+
+BOOL CSubDlgMain::StartTask()
+{
+	if (!controller)
+		return FALSE;
+	if (!IsDlgButtonChecked(IDC_CHECK_RUN))
+	{
+		CheckDlgButton(IDC_CHECK_RUN, true);
+		SendCmdMsg(IDC_CHECK_RUN);
+		Sleep(500);
+	}
+
+	return true;
+}
+BOOL CSubDlgMain::RunTask(LPCTSTR lpszTaskName, LPCTSTR lpszScriptFile,int nTaskId)
+{
+	if (!controller)
+		return FALSE;
+
+	StartTask();
 
 	static char szName[1024] = { 0 };
 	strcpy_s(szName, CW2A(lpszTaskName));

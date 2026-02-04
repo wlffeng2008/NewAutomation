@@ -19,7 +19,8 @@ public:
 	CDlgPSOEdit *m_pDlgPSO=nullptr;
 
 	int OnSimpleThreadLoopRun(int nID);
-
+	BOOL StopTask();
+	BOOL StartTask();
 	BOOL RunTask(LPCTSTR lpszTaskName,LPCTSTR lpszScriptFile=nullptr,int nTaskId=1);
 	BOOL WriteFile(LPCTSTR lpszFileName ,void *data, int nLen);
 

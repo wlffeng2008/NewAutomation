@@ -47,7 +47,7 @@ program
 		Home($X_axis)
 	end
 	
-    SetupTaskTargetMode(TargetMode.Absolute)
+    SetupTaskTargetMode(TargetMode.Incremental)
 	
     var $Y_speed as real = %.2f
     var $X_speed as real = %.2f
@@ -68,11 +68,7 @@ program
 	for $file = $fileBegin to $fileEnd
 		var $fileName as string = "/positions-" + IntegerToString($file) + ".rd"	
 		$fileHandle = FileOpenBinary($fileName, FileMode.Read)
-	
 		$type = FileBinaryReadUInt32($fileHandle)  // type
-		if $type > 1
-			continue
-		end
 		$count = FileBinaryReadUInt32($fileHandle) // count
 		$line = FileBinaryReadFloat64($fileHandle) // line
 		FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)
@@ -95,7 +91,7 @@ program
 			WaitForMotionDone($Y_axis)
 			Dwell(0.100)
 		
-			MoveAbsolute($X_axis, $posEnd - $posStart, $X_speed)
+			MoveAbsolute($X_axis, $posStart, $X_speed)
 			WaitForMotionDone($X_axis)	
 			Dwell(0.100)
 		end 
@@ -105,7 +101,7 @@ program
 			WaitForMotionDone($X_axis)
 			Dwell(0.100)
 		
-			MoveAbsolute($Y_axis, $posEnd - $posStart, $Y_speed)
+			MoveAbsolute($Y_axis, $posStart, $Y_speed)
 			WaitForMotionDone($Y_axis)	
 			Dwell(0.100)
 		end 
@@ -155,13 +151,13 @@ program
     
 		if $type == 0
 			AppMessageDisplay("将X轴移动至目标位置")
-			MoveLinear($X_axis, $posEnd, $X_speed)
+			MoveLinear($X_axis, $posEnd - $posStart, $X_speed)
 			WaitForMotionDone($X_axis)
 		end
 	
 		if $type == 1
 			AppMessageDisplay("将Y轴移动至目标位置")
-    		MoveLinear($Y_axis, $posEnd, $Y_speed)
+    		MoveLinear($Y_axis, $posEnd - $posStart, $Y_speed)
     		WaitForMotionDone($Y_axis)
 		end
     
@@ -290,6 +286,7 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 		pEdit->Invalidate(TRUE);
 	}
 		break;
+
 	case IDC_BUTTON_OPEN:
 	{
 		CFileDialog  dlg(true, _T("txt"));
@@ -385,10 +382,19 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 		break;
 	}
 
+	case IDC_BUTTON_STOP:
+		m_pMain->StopTask();
+		break;
 	case IDC_BUTTON_RUNALL:
 	{
-		CMyListCtrl *pList = GetMyListCtrl(IDC_LIST1);
-		int nCount = pList->GetItemCount();
+		CIniAX Set(_T("WorkConfig"));
+		int nCount = Set.GetInt(_T("WriteCount"), 0);
+		if (nCount == 0)
+		{
+			MessageBox(_T("请首先写入全部数据！"), _T("提示"), MB_ICONERROR);
+			break;
+		}
+			
 		CString  strCall = strCallFile;
 		strCall.Format(strCallFile, GetDlgItemFloat(IDC_EDIT_SPEEDX), GetDlgItemFloat(IDC_EDIT_SPEEDY),
 			GetDlgItemInt(IDC_EDIT_TPLUSTIME), GetDlgItemInt(IDC_EDIT_PLUSDUR), 
@@ -444,11 +450,12 @@ int COutloadDlg::OnSimpleThreadLoopRun(int nID)
 
 				m_bSendAll = FALSE;
 
+				CIniAX Set(_T("WorkConfig"));
+				Set.SetInt(_T("WriteCount"), nCount);
 				SetDlgItemText(IDC_STATIC_INFO, _T("写入完成"));
 				strInfo.Format(_T("成功写入 %d 条（组）数据！\n需要立即运行(调用)吗?"), nCount);
 				if (IDYES == MessageBox(strInfo, _T("提示"), MB_ICONINFORMATION | MB_YESNO))
 				{
-
 					SendCmdMsg(IDC_BUTTON_RUNALL);
 				}
 				continue;

@@ -109,7 +109,7 @@ BOOL CNewAutomationDlg::OnInitDialog()
 	Automation1_GetApiVersion(&v0, &v1, &v2);
 	
 	CString strTxt;
-	strTxt.Format(_T("AeroTech Automation: V%d.%d.%d"), v0, v1, v2);
+	strTxt.Format(_T("AeroTech Automation: V%d.%d.%d  -- Брвы: %s"), v0, v1, v2 ,FormatTM(TimestampToTime(CA2W(__TIMESTAMP__))));
 	SetWindowText(strTxt);
 
 	m_pDlgMn = new CSubDlgMain();
