@@ -56,31 +56,17 @@ program
 	var $FixedCount as integer = %d
 	var $fileBegin as integer = %d
 	var $fileEnd as integer = %d
-	var $type as integer
-	var $count as integer
-	var $index as integer
-	var $line as real
-	var $fileHandle as handle
-	var $R_positions[10000] as real // will read from file
-    var $distances[10000] as real  
-    var $file as integer
-	
+    var $file as integer	
 	for $file = $fileBegin to $fileEnd
+		var $R_positions[10000] as real // will read from file
+		var $distances[10000] as real  
 		var $fileName as string = "/positions-" + IntegerToString($file) + ".rd"	
-		$fileHandle = FileOpenBinary($fileName, FileMode.Read)
-		$type = FileBinaryReadUInt32($fileHandle)  // type
-		$count = FileBinaryReadUInt32($fileHandle) // count
-		$line = FileBinaryReadFloat64($fileHandle) // line
-		FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)
-	
+		var $fileHandle as handle = FileOpenBinary($fileName, FileMode.Read)
+		var $type as integer = FileBinaryReadUInt32($fileHandle)  // type
+		var $count as integer = FileBinaryReadUInt32($fileHandle) // count
+		var $line as real = FileBinaryReadFloat64($fileHandle) // line
+		FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)	
 		FileClose($fileHandle)
-	
-		//$type = 1 
-		//$line = 100
-		//$count = 20
-		//for $index = 0 to $count-1
-		//	$R_positions[$index]= $index *10
-		//end
 
 		var $adjust as real = 0
 		var $posStart as real = $R_positions[0] - $adjust
@@ -118,7 +104,8 @@ program
 			DriveEncoderOutputOn($Y_axis, EncoderOutputChannel.SyncPortB)
 			PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4eSyncPortA]) 
 		end
-		
+
+		var $index as integer = 0
 		var $increment as real = 0
 		CriticalSectionStart()
 			for $index = 0 to $count - 1
