@@ -1,0 +1,140 @@
+
+program
+    var $X_axis as axis = X1
+    var $Y_axis as axis = Y1
+	var $isXHomed as real
+	var $isYHomed as real
+	$isXHomed = (StatusGetAxisItem($X_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
+	$isYHomed = (StatusGetAxisItem($Y_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
+    Enable([$X_axis, $Y_axis])
+	if StatusGetAxisItem($Y_axis,AxisStatusItem.AxisStatus,AxisStatus.Homed) != $isYHomed
+		Home($Y_axis)
+	end
+	if StatusGetAxisItem($X_axis,AxisStatusItem.AxisStatus,AxisStatus.Homed) != $isXHomed
+		Home($X_axis)
+	end
+	
+    SetupTaskTargetMode(TargetMode.Absolute)
+	
+    var $Y_speed as real = 100.00
+    var $X_speed as real = 100.00
+	var $TotalTime as integer = 5000
+	var $OnTime as integer = 2000
+	var $FixedCount as integer = 2
+	var $fileBegin as integer = 0
+	var $fileEnd as integer = 1317
+	var $type as integer
+	var $count as integer
+	var $index as integer
+	var $line as real
+	var $fileHandle as handle
+	var $R_positions[10000] as real // will read from file
+    var $distances[10000] as real  
+    var $file as integer
+	
+	for $file = $fileBegin to $fileEnd
+		var $fileName as string = "/positions-" + IntegerToString($file) + ".rd"	
+		$fileHandle = FileOpenBinary($fileName, FileMode.Read)
+	
+		$type = FileBinaryReadUInt32($fileHandle)  // type
+		if $type > 1
+			continue
+		end
+		$count = FileBinaryReadUInt32($fileHandle) // count
+		$line = FileBinaryReadFloat64($fileHandle) // line
+		FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)
+	
+		FileClose($fileHandle)
+	
+		//$type = 1 
+		//$line = 100
+		//$count = 20
+		//for $index = 0 to $count-1
+		//	$R_positions[$index]= $index *10
+		//end
+
+		var $adjust as real = 0
+		var $posStart as real = $R_positions[0] - $adjust
+		var $posEnd as real = $R_positions[$count-1]  + $adjust
+	
+		if $type == 0	
+			MoveAbsolute($Y_axis, $line, $Y_speed)
+			WaitForMotionDone($Y_axis)
+			Dwell(0.100)
+		
+			MoveAbsolute($X_axis, $posStart, $X_speed)
+			WaitForMotionDone($X_axis)	
+			Dwell(0.100)
+		end 
+	
+		if $type == 1	
+			MoveAbsolute($X_axis, $line, $X_speed)
+			WaitForMotionDone($X_axis)
+			Dwell(0.100)
+		
+			MoveAbsolute($Y_axis, $posStart, $Y_speed)
+			WaitForMotionDone($Y_axis)	
+			Dwell(0.100)
+		end 
+        
+		PsoReset($X_axis)
+	
+		if $type == 0
+			PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4ePrimaryFeedback])
+		end
+	
+		if $type == 1
+			DriveEncoderOutputConfigureInput($Y_axis, EncoderOutputChannel.SyncPortB, EncoderInputChannel.PrimaryEncoder)
+			DriveEncoderOutputConfigureDivider($Y_axis, EncoderOutputChannel.SyncPortB, 1)   // 1: DIGITAL ENCODER 2: ANALOG ENCODER
+			DriveEncoderOutputOn($Y_axis, EncoderOutputChannel.SyncPortB)
+			PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4eSyncPortA]) 
+		end
+		
+		CriticalSectionStart()
+			for $index =0 to $count - 1
+        		$distances[$index] = UnitsToCounts($X_axis, $R_positions[$index]) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+			end
+		CriticalSectionEnd()
+		
+		DriveArrayWrite($X_axis, $distances, 0, $count, DriveArrayType.PsoDistanceEventDistances)
+		PsoDistanceConfigureArrayDistances($X_axis, 0, $count, false)
+		AppMessageDisplay("PSO距离位置驱动写入完成")
+    
+		// Configure PSO waveform 配置PSO波形
+		PsoWaveformConfigureMode($X_axis, PsoWaveformMode.Pulse)
+		PsoWaveformConfigurePulseFixedTotalTime($X_axis, $TotalTime)
+		PsoWaveformConfigurePulseFixedOnTime($X_axis, $OnTime)
+		PsoWaveformConfigurePulseFixedCount($X_axis, $FixedCount)
+		PsoWaveformApplyPulseConfiguration($X_axis)
+    
+		// Enable PSO functions 启用PSO功能
+		PsoDistanceCounterOn($X_axis)
+		PsoDistanceEventsOn($X_axis)
+		PsoWaveformOn($X_axis)
+    
+		// Configure PSO output 配置PSO输出
+		PsoOutputConfigureSource($X_axis, PsoOutputSource.Waveform)
+		PsoOutputConfigureOutput($X_axis, PsoOutputPin.iXC4eDedicatedOutput)
+    
+		if $type == 0
+			AppMessageDisplay("将X轴移动至目标位置")
+			MoveLinear($X_axis, $posEnd, $X_speed)
+			WaitForMotionDone($X_axis)
+		end
+	
+		if $type == 1
+			AppMessageDisplay("将Y轴移动至目标位置")
+    		MoveLinear($Y_axis, $posEnd, $Y_speed)
+    		WaitForMotionDone($Y_axis)
+		end
+    
+		// Disable PSO functions 禁用PSO功能
+		PsoWaveformOff($X_axis)
+		PsoDistanceCounterOff($X_axis)
+		PsoDistanceEventsOff($X_axis)
+	end
+
+	//Home($X_axis)
+	//Home($Y_axis)
+	
+end

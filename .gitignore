@@ -1,0 +1,9 @@
+/x64
+/ipch
+/bin/ascript
+/NewAutomation/x64
+/.vs
+/bin/*.iobj
+/NewAutomation/*.user
+/*.db
+/bin/*.ipdb
