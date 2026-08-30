@@ -10,23 +10,13 @@ program
     var $Y_axis as axis = Y1
     Enable([$X_axis, $Y_axis])
 
-    if (StatusGetAxisItem($X_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) != AxisStatus.Homed)
-        AppMessageDisplay("X axis not homed – homing now...")
-        Home($X_axis)
-        WaitForMotionDone($X_axis)
-        AppMessageDisplay("X轴回零")
-    else
-        AppMessageDisplay("X轴已回零")
-    end
+    Home($X_axis)
+    WaitForMotionDone($X_axis)
+    AppMessageDisplay("X轴已回零")
 
-    if (StatusGetAxisItem($Y_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) != AxisStatus.Homed)
-        AppMessageDisplay("Y axis not homed – homing now...")
-        Home($Y_axis)
-        WaitForMotionDone($Y_axis)
-        AppMessageDisplay("Y轴回零")
-    else
-        AppMessageDisplay("Y轴已回零")
-    end
+    Home($Y_axis)
+    WaitForMotionDone($Y_axis)
+    AppMessageDisplay("Y轴已回零")
 
     var $X_speed as real = 100.00
     var $Y_speed as real = 100.00
