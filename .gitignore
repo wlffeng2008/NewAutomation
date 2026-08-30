@@ -7,3 +7,6 @@
 /NewAutomation/*.user
 /*.db
 /bin/*.ipdb
+/bin/NewAutomain.exe
+/bin/WorkConfig.ini
+/bin/writefile.ascript

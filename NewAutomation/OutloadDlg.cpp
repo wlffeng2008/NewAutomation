@@ -41,14 +41,8 @@ program
     var $X_axis as axis = X1
     var $Y_axis as axis = Y1
     Enable([$X_axis, $Y_axis])
-
-    Home($X_axis)
-    WaitForMotionDone($X_axis)
-    AppMessageDisplay("X轴已回零")
-
-    Home($Y_axis)
-    WaitForMotionDone($Y_axis)
-    AppMessageDisplay("Y轴已回零")
+	Home([$X_axis, $Y_axis])
+	WaitForMotionDone([$X_axis, $Y_axis])
 
     var $X_speed as real = %.2f
     var $Y_speed as real = %.2f
@@ -420,9 +414,9 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 		strCall.Format(strCallFile1, GetDlgItemFloat(IDC_EDIT_SPEEDX), GetDlgItemFloat(IDC_EDIT_SPEEDY), GetDlgItemFloat(IDC_EDIT_SPEEDPOS),
 			GetDlgItemInt(IDC_EDIT_TPLUSTIME), GetDlgItemInt(IDC_EDIT_PLUSDUR), GetDlgItemInt(IDC_EDIT_PLUSCOUNT), 0, nCount - 1, GetDlgItemFloat(IDC_EDIT_ADJUST));
 
-		CString strFile = GetCurrentPath() + _T("callAllFile.ascript");
+		CString strFile = GetCurrentPath() + _T("callAllFiles.ascript");
 		SaveTextAsUTF8(strCall, strFile);
-		m_pMain->RunTask(_T("callAllFile.ascript"));
+		m_pMain->RunTask(_T("callAllFiles.ascript"));
 		break;
 	}
 	default:
