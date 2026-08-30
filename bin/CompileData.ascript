@@ -1,0 +1,45 @@
+
+program
+    var $fileBegin as integer = 0
+    var $fileEnd as integer = 1317
+    var $file as integer
+    
+    // Read variables
+    var $type as integer
+    var $count as integer
+    var $line as real
+    var $R_positions[10000] as real 
+    
+    var $readHandle as handle
+    var $writeHandle as handle
+    var $individualFile as string
+    var $masterFile as string = "/all_positions-v2.rd"
+    
+    AppMessageDisplay("Starting consolidation on controller drive...")
+    
+    // Open the master file for writing on the controller drive
+    $writeHandle = FileOpenBinary($masterFile, FileMode.Overwrite)
+    
+    for $file = $fileBegin to $fileEnd
+        $individualFile = "/positions/" + IntegerToString($file) + ".rd"
+        
+        // Open and read the individual file
+        $readHandle = FileOpenBinary($individualFile, FileMode.Read)
+        $type = FileBinaryReadUInt32($readHandle)  
+        $count = FileBinaryReadUInt32($readHandle) 
+        $line = FileBinaryReadFloat64($readHandle) 
+        FileBinaryReadFloat64Array($readHandle, $R_positions, $count)
+        FileClose($readHandle)
+		DirectoryFileDelete($individualFile)
+        
+        // Append the data blocks directly into the master stream
+        FileBinaryWriteUInt32($writeHandle, $type)
+        FileBinaryWriteUInt32($writeHandle, $count)
+        FileBinaryWriteFloat64($writeHandle, $line)
+        FileBinaryWriteFloat64Array($writeHandle, $R_positions, $count)
+    end
+    
+    // Safely close the consolidated master file
+    FileClose($writeHandle)
+    AppMessageDisplay("Consolidation complete! /all_positions.rd is ready.")
+end

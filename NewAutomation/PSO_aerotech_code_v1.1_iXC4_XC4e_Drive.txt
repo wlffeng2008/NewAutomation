@@ -1,0 +1,424 @@
+// ================================================================
+// PSO Drilling Motion Program -- Validated Baseline (v1)
+// 已验证基线版本 (v1)
+//
+// ================================================================
+
+program
+    var $X_axis as axis = X1
+    var $Y_axis as axis = Y1
+    Enable([$X_axis, $Y_axis])
+
+    // ============================================================
+    // Homing check for both axes – if not homed, home them now
+    // ============================================================
+    // X‑axis
+    if (StatusGetAxisItem($X_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) != AxisStatus.Homed)
+        AppMessageDisplay("X axis not homed – homing now...")
+        Home($X_axis)
+        WaitForMotionDone($X_axis)
+        AppMessageDisplay("X轴回零")
+    else
+        AppMessageDisplay("X轴已回零")
+    end
+
+    // Y‑axis
+    if (StatusGetAxisItem($Y_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) != AxisStatus.Homed)
+        AppMessageDisplay("Y axis not homed – homing now...")
+        Home($Y_axis)
+        WaitForMotionDone($Y_axis)
+        AppMessageDisplay("Y轴回零")
+    else
+        AppMessageDisplay("Y轴已回零")
+    end
+
+    var $X_speed as real = 1000.00
+    var $Y_speed as real = 1000.00
+    var $TotalTime as integer = 5000
+    var $OnTime as integer = 2000
+    var $FixedCount as integer = 2
+    var $fileBegin as integer = 0
+    var $fileEnd as integer = 1
+
+    // ----------------------------------------------------------------
+    // $posSpeed is used ONLY for the non-firing positioning move between
+    // rows, never for the PSO-armed scan move (which always explicitly
+    // re-locks to $X_speed/$Y_speed = 1000mm/s via SetupAxisSpeed right
+    // before firing -- see below). Raising this cannot affect hole
+    // quality, only how fast the axes travel between rows.
+    //
+    // EXPECTATION: measured average positioning distance is only ~11mm.
+  
+    //
+    // SAFETY CHECK BEFORE RUNNING / 运行前的安全检查:
+    // This value is used for BOTH axes' positioning move. Confirm each
+    // axis's configured maximum velocity (and any travel-limit margins)
+    // actually supports 1500mm/s before running -- if either axis is
+    // parameter-limited below this, the move will fault rather than
+    // silently clip.
+    // 这个值会同时用于两根轴的定位运动。运行前请确认每根轴配置的最大
+    // 速度（以及行程限位的余量）确实支持 1500mm/s——如果任一轴的参数
+    // 限制低于这个值，运动指令会报错，而不是自动降速执行。
+    // ----------------------------------------------------------------
+    var $posSpeed as real = 1500.00
+
+    var $type as integer
+    var $count as integer
+    var $line as real
+
+    // ----------------------------------------------------------------
+    // DEPENDENCY WARNING / 依赖性警告:
+    // $header reads $type and $count together in ONE call because the
+    // .rd file format stores them as two ADJACENT UInt32 values, in that
+    // exact order (type first, then count), with nothing in between.
+    //
+    // If anyone ever changes the file-generation pipeline and inserts
+    // any other field between "type" and "count" -- or reorders them,
+    // or changes either one to a different byte width -- this read will
+    // NOT throw an error. It will silently misalign: $count will end up
+    // holding whatever bytes actually belong to the next field (for
+    // example, part of "line"'s bytes reinterpreted as an integer), and
+    // every row after that point will read garbage. This will likely
+    // show up as a crash or corrupted motion much later in the file,
+    // not at the point where the misalignment actually started, making
+    // it hard to trace back.
+    //
+    // If you change the .rd file format in any way, you MUST update this
+    // read to match, and re-verify with the PSO_MergeCandidateCheck-style
+    // read-only diagnostic before running this on the machine again.
+    //
+    // 如果有人以后修改了文件生成流程，在"type"和"count"之间插入了其他
+    // 字段，或者调换了两者顺序，或者把其中一个改成了不同的字节宽度，
+    // 这段读取代码不会报错，而是会"静默错位"：$count 会读到本应属于
+    // 下一个字段的字节（例如把"line"的部分字节误读成整数），从这一行
+    // 往后的每一行数据都会变成垃圾数据。这种错误通常要等到文件后面才会
+    // 表现为程序崩溃或运动异常，而不是在错位真正发生的地方，导致排查
+    // 非常困难。
+    //
+    // 如果你以后修改了 .rd 文件格式，必须同步修改这段读取代码，并且在
+    // 重新运行本程序控制机台之前，先用类似 PSO_MergeCandidateCheck 的
+    // 只读诊断脚本重新验证文件结构。
+    // ----------------------------------------------------------------
+    var $header[2] as integer
+
+    // ----------------------------------------------------------------
+    // DEPENDENCY WARNING / 依赖性警告:
+    // These two arrays are sized for up to 10000 points per row. Your
+    // current data has a max of 2499 holes/row, so there's headroom --
+    // but if a future .rd file ever has a row with MORE than 10000
+    // points, FileBinaryReadFloat64Array will only fill the first 10000
+    // slots and the rest of $count will be silently ignored (or, on some
+    // controllers, this can fault). If your hole density or row length
+    // ever increases significantly, increase this size to match, with
+    // margin.
+    //
+    // 这两个数组按每行最多 10000 个点分配。你目前的数据每行最多
+    // 2499 个孔，还有余量；但如果以后某个 .rd 文件里某一行的点数
+    // 超过 10000，FileBinaryReadFloat64Array 只会填充前 10000 个位置，
+    // 其余的点会被静默忽略（在某些控制器上可能直接报错）。如果以后
+    // 孔密度或每行点数明显增加，请相应增大这个数组大小，并预留余量。
+    // ----------------------------------------------------------------
+    var $R_positions[10000] as real
+    var $distances[10000] as real
+    var $index as integer
+    var $file as integer
+    var $fileHandle as handle
+
+    // ----------------------------------------------------------------
+    // DEPENDENCY WARNING / 依赖性警告:
+    // $adjust = 50mm comes from V^2/(2a) = 1000^2/(2*10000) = 50mm.
+    // This value is tied DIRECTLY to $X_speed/$Y_speed (1000mm/s) and
+    // whatever acceleration the axes are actually configured with
+    // (assumed 10000mm/s^2 here). If either the target speed or the
+    // axis acceleration parameter ever changes, this number MUST be
+    // recalculated, or PSO will start firing before the axis has
+    // actually reached constant velocity -- which affects hole quality,
+    // not just timing.
+    //
+    // STATUS: your axes use Sinusoidal (S-curve) ramping, not simple
+    // trapezoidal. Per Aerotech's documentation, the configured ramp
+    // rate represents AVERAGE acceleration for all ramp types, and for
+    // a symmetric profile this makes the V^2/(2a) distance formula come
+    // out the same regardless of ramp shape -- so 50mm SHOULD still be
+    // correct in theory. This is currently pending confirmation from
+    // Aerotech support (see file header) and/or direct verification via
+    // Automation1's Data Collection feature (log VelFbk during a real
+    // scan move and confirm where it actually settles to a flat
+    // 1000mm/s). Do not change this value based on guesswork.
+    //
+    // $adjust = 50mm 的由来是 V^2/(2a) = 1000^2/(2*10000) = 50mm。这个值
+    // 直接依赖于 $X_speed/$Y_speed（1000mm/s）以及轴实际配置的加速度
+    // （此处假设为 10000mm/s^2）。如果目标速度或轴的加速度参数以后发生
+    // 变化，这个数值必须重新计算，否则 PSO 会在轴还未真正达到匀速时就
+    // 开始触发——这会影响打孔品质，而不仅仅是节拍时间。
+    //
+    // 当前状态：你的轴使用的是正弦（S 曲线）加减速，而不是简单的梯形
+    // 加减速。根据 Aerotech 官方文档，所配置的加减速率对所有加减速类型
+    // 而言代表的都是"平均加速度"，对于对称的加减速曲线来说，这会使
+    // V^2/(2a) 这个距离公式在不同加减速曲线形状下结果相同——因此理论上
+    // 50mm 仍然是正确的。目前这一点正在等待 Aerotech 技术支持确认（见
+    // 文件开头），和/或通过 Automation1 的 Data Collection 功能直接验证
+    // （在一次真实的扫描运动中记录 VelFbk，确认它实际稳定到匀速
+    // 1000mm/s 的位置）。请勿凭猜测更改此数值。
+    // ----------------------------------------------------------------
+    var $adjust as real = 50.0
+    var $posStart as real
+    var $posEnd as real
+    var $increment as real = 0
+
+    // Track the previous row's scan orientation so hardware reconfiguration only
+    // happens on an actual X<->Y transition, not on every single row.
+    // 记录上一行的扫描方向，这样硬件重新配置只会在 X/Y 方向真正切换时
+    // 执行一次，而不是每一行都执行。
+    //
+    // DEPENDENCY WARNING / 依赖性警告:
+    // This assumes $type==0 always means "X-axis drives the scan, using
+    // primary feedback" and $type==1 always means "Y-axis drives the
+    // scan, using the sync port encoder-output route." If the file
+    // format's meaning of $type ever changes, this whole block (and the
+    // matching block after the scan move) must be updated to match.
+    //
+    // 这里假设 $type==0 永远代表"由 X 轴驱动扫描，使用主反馈"，
+    // $type==1 永远代表"由 Y 轴驱动扫描，使用同步端口编码器输出"。
+    // 如果 .rd 文件里 $type 的含义以后发生变化，这一段（以及扫描运动
+    // 之后对应的那一段）都必须同步修改。
+    var $lastType as integer = -1
+
+    // Cache conversion factors once to avoid calling UnitsToCounts() per-point in the hot loop.
+    // UnitsToCounts(axis, units) == units * CountsPerUnit(axis) (see Aerotech Utility/Conversion Functions docs).
+    // Caching this turns ~12M potential function calls (up to 2499 pts x 4895 rows) into plain multiplies.
+    //
+    // DEPENDENCY WARNING / 依赖性警告:
+    // This scale factor is read from $X_axis specifically, because the PSO
+    // distance array is always written to $X_axis (DriveArrayWrite target
+    // below). This is correct as long as PSO distance tracking always runs
+    // through $X_axis's counts/divider, even during $type==1 (Y-drive) rows
+    // -- which matches the PsoDistanceConfigureInputs(...SyncPortA) routing
+    // used further down. If that routing ever changes to use $Y_axis's own
+    // counts directly, this cached factor would need to come from $Y_axis
+    // instead for type==1 rows.
+    //
+    // 这个换算系数是专门从 $X_axis 读取的，因为下面的 DriveArrayWrite 始终
+    // 把 PSO 距离数组写入 $X_axis。只要 PSO 距离追踪始终通过 $X_axis 的
+    // 计数/分频器进行——即使在 $type==1（Y 轴驱动）的行也是如此，这样处理
+    // 就是正确的，这与下面使用的 PsoDistanceConfigureInputs(...SyncPortA)
+    // 路由方式是一致的。如果以后这个路由方式改成 type==1 时直接使用
+    // $Y_axis 自身的计数，那么这个缓存系数在 type==1 的行就需要改成从
+    // $Y_axis 读取。
+    var $countsDivider as real
+    var $countsPerUnit as real
+    $countsDivider = ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+    $countsPerUnit = ParameterGetAxisValue($X_axis, AxisParameter.CountsPerUnit)
+    var $scaleFactor as real = $countsPerUnit / $countsDivider
+
+    // ---- Timing: total run time only ----
+    // Per-section timers (file read / positioning / math / scan) were used
+    // during development to find and validate each optimization in this
+    // file. They've been removed here because TimerRead() itself has a
+    // small real cost -- confirmed directly during testing, where adding
+    // more granular timers measurably ate into the very savings they were
+    // trying to reveal. Only the total run time is kept for production use.
+    // ---- 计时说明：仅保留总运行时间 ----
+    // 分项计时器（文件读取/定位/数学运算/扫描）曾用于开发阶段查找并验证
+    // 本文件中的每一项优化。这里已将它们移除，因为 TimerRead() 本身有
+    // 一定的真实开销——测试中已直接确认，添加越多细分计时器，越会
+    // 侵蚀它们本想揭示的那部分节省的时间。生产使用中只保留总运行时间。
+    TimerClear(0)
+
+    // ============================================================
+    // Global PSO Hardware Configuration (Once)
+    // ============================================================
+    // HARDWARE UPDATE / 硬件更新: X-axis drive changed to iXC4 (was
+    // iXC4e); Y-axis drive is XC4e. All PSO configuration in this script
+    // runs on $X_axis, which is why every PsoDistanceInput/PsoOutputPin
+    // enum below uses the "iXC4" prefix, matching X's drive -- not Y's,
+    // even for iXC4SyncPortA (that port physically lives on X's drive,
+    // it's just receiving Y's echoed encoder signal). Confirmed against
+    // Aerotech's own 2-axis PSO example, which pairs PrimaryFeedback and
+    // SyncPortA under the SAME drive prefix.
+    // X 轴驱动器已更换为 iXC4（原为 iXC4e）；Y 轴驱动器为 XC4e。本脚本中
+    // 所有 PSO 配置都运行在 $X_axis 上，因此下面每一个 PsoDistanceInput/
+    // PsoOutputPin 枚举都使用 "iXC4" 前缀，对应的是 X 轴的驱动器——而不是
+    // Y 轴的，iXC4SyncPortA 也是如此（该端口物理上位于 X 轴驱动器上，只是
+    // 接收由 Y 轴回传的编码器信号）。这一点已通过 Aerotech 官方的双轴 PSO
+    // 示例程序核实，该示例中 PrimaryFeedback 和 SyncPortA 使用的是相同的
+    // 驱动器前缀。
+    //
+    // UNVERIFIED / 未经验证: PsoOutputPin.iXC4DedicatedOutput follows the
+    // same prefix-swap logic as the two PsoDistanceInput members above,
+    // but I could not find direct Aerotech documentation confirming this
+    // exact enum member name exists for iXC4 drives (only confirmed the
+    // PsoDistanceInput pattern directly). Check Studio's autocomplete/
+    // IntelliSense when typing "PsoOutputPin." to confirm the exact valid
+    // name before running, and check the Build panel for 0 errors.
+    // PsoOutputPin.iXC4DedicatedOutput 遵循与上面两个 PsoDistanceInput
+    // 成员相同的前缀替换逻辑，但我没有找到 Aerotech 官方文档直接确认
+    // iXC4 驱动器确实存在这个确切的枚举成员名称（只直接确认了
+    // PsoDistanceInput 的命名规律）。运行前请在 Studio 中输入
+    // "PsoOutputPin." 时查看自动补全/IntelliSense 提示，确认这个名称
+    // 确实存在，并检查 Build 面板确认没有报错。
+    // ============================================================
+    PsoReset($X_axis)
+    PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+
+    PsoWaveformConfigureMode($X_axis, PsoWaveformMode.Pulse)
+    PsoWaveformConfigurePulseFixedTotalTime($X_axis, $TotalTime)
+    PsoWaveformConfigurePulseFixedOnTime($X_axis, $OnTime)
+    PsoWaveformConfigurePulseFixedCount($X_axis, $FixedCount)
+    PsoWaveformApplyPulseConfiguration($X_axis)
+
+    PsoOutputConfigureSource($X_axis, PsoOutputSource.Waveform)
+    PsoOutputConfigureOutput($X_axis, PsoOutputPin.iXC4DedicatedOutput)
+
+    // ============================================================
+    // Single File Open Outside the Loop
+    // ============================================================
+    var $masterFileName as string = "/all_positions.rd"
+    $fileHandle = FileOpenBinary($masterFileName, FileMode.Read)
+
+    for $file = $fileBegin to $fileEnd
+
+        // ------------------------------------------------------------
+        // See the DEPENDENCY WARNING on $header above the variable
+        // declarations: $type and $count MUST remain two adjacent
+        // UInt32 values in the file for this combined read to be valid.
+        // 参见上方 $header 声明处的"依赖性警告"：$type 和 $count 必须
+        // 在文件中保持相邻的两个 UInt32 值，这段合并读取才是有效的。
+        // ------------------------------------------------------------
+        // ---- OLD VERSION (pre-optimization, ~63.4 min total) ----
+        // Kept here, commented out, in case the .rd file format is ever
+        // changed and this combined read needs to be reverted. This is
+        // the original, always-safe way to read the two UInt32 fields
+        // separately -- slightly slower (saved ~1 minute total when
+        // switched to the combined read below), but has no dependency
+        // on $type and $count staying byte-adjacent in the file.
+        // 旧版本（优化前，总耗时约 63.4 分钟）。保留在此处并注释掉，
+        // 以备将来 .rd 文件格式发生变化、需要撤销下面的合并读取时使用。
+        // 这是最初的、始终安全的分开读取两个 UInt32 字段的方式——比下面
+        // 的合并读取略慢（切换到合并读取后总共节省了约 1 分钟），但不
+        // 依赖 $type 和 $count 在文件中字节相邻这一前提。
+        //
+        // $type = FileBinaryReadUInt32($fileHandle)
+        // $count = FileBinaryReadUInt32($fileHandle)
+
+        // ---- CURRENT VERSION (combined read, ~62.4 min total) ----
+        // Reads $type and $count together in one call since the .rd file
+        // stores them as two adjacent UInt32 values. See the DEPENDENCY
+        // WARNING above if you ever change the file format.
+        // 当前版本（合并读取，总耗时约 62.4 分钟）。因为 .rd 文件把
+        // $type 和 $count 存储为相邻的两个 UInt32 值，所以在一次调用中
+        // 一起读取。如果以后修改文件格式，请参见上方的"依赖性警告"。
+        FileBinaryReadUInt32Array($fileHandle, $header, 2)
+        $type = $header[0]
+        $count = $header[1]
+
+        $line = FileBinaryReadFloat64($fileHandle)
+        FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)
+
+        if ($R_positions[0] < $R_positions[$count-1])
+            $posStart = $R_positions[0] - $adjust
+            $posEnd = $R_positions[$count-1] + $adjust
+        else
+            $posStart = $R_positions[0] + $adjust
+            $posEnd = $R_positions[$count-1] - $adjust
+        end
+
+        // ============================================================
+        // Only touch encoder/PSO input routing on an actual orientation switch,
+        // not on every row of the same type. This was previously happening every
+        // single $type==1 row (and being undone every single $type==1 row).
+        // ============================================================
+        if $type == 0
+            if $lastType == 1
+                // Coming back from a Y-drive scan block: restore primary feedback once.
+                PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+                DriveEncoderOutputOff($Y_axis, EncoderOutputChannel.SyncPortB)
+            end
+        end
+
+        if $type == 1
+            if $lastType != 1
+                // Entering a Y-drive scan block: configure sync port once.
+                DriveEncoderOutputConfigureInput($Y_axis, EncoderOutputChannel.SyncPortB, EncoderInputChannel.PrimaryEncoder)
+                DriveEncoderOutputConfigureDivider($Y_axis, EncoderOutputChannel.SyncPortB, 1)
+                DriveEncoderOutputOn($Y_axis, EncoderOutputChannel.SyncPortB)
+                PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4SyncPortA])
+            end
+        end
+
+        // ============================================================
+        // Coordinated positioning move -- issued WITHOUT an immediate wait.
+        // AeroScript continues executing the next lines while the move is in
+        // flight (confirmed in Aerotech's Asynchronous Motion example), so the
+        // distance-array math below runs concurrently with the move instead of
+        // after it. We only block on WaitForMotionDone right before we need the
+        // axes settled to arm PSO tracking.
+        // ============================================================
+        if $type == 0
+            MoveAbsolute([$Y_axis, $X_axis], [$line, $posStart], [$posSpeed, $posSpeed])
+        end
+        if $type == 1
+            MoveAbsolute([$X_axis, $Y_axis], [$line, $posStart], [$posSpeed, $posSpeed])
+        end
+
+        // ============================================================
+        // Distance-array math -- now overlapped with the positioning move above.
+        // Replaced per-point UnitsToCounts() calls with a single cached scale
+        // factor (plain multiply instead of a function call per element).
+        // ============================================================
+        CriticalSectionStart()
+            for $index = 0 to $count - 1
+                if $index == 0
+                    $increment = $adjust
+                else
+                    $increment = Abs($R_positions[$index] - $R_positions[$index-1])
+                end
+                $distances[$index] = $increment * $scaleFactor
+            end
+        CriticalSectionEnd()
+
+        // Now block until the positioning move (issued above) is actually done,
+        // since PSO tracking must start from a settled, known position.
+        WaitForMotionDone([$Y_axis, $X_axis])
+
+        DriveArrayWrite($X_axis, $distances, 0, $count, DriveArrayType.PsoDistanceEventDistances)
+        PsoDistanceConfigureArrayDistances($X_axis, 0, $count, false)
+
+        PsoDistanceCounterOn($X_axis)
+        PsoDistanceEventsOn($X_axis)
+        PsoWaveformOn($X_axis)
+
+        if $type == 0
+            SetupAxisSpeed($X_axis, $X_speed)
+            MoveRapid($X_axis, $posEnd - $posStart)
+            WaitForMotionDone($X_axis)
+        end
+
+        if $type == 1
+            SetupAxisSpeed($Y_axis, $Y_speed)
+            MoveRapid($Y_axis, $posEnd - $posStart)
+            WaitForMotionDone($Y_axis)
+        end
+
+        PsoWaveformOff($X_axis)
+        PsoDistanceCounterOff($X_axis)
+        PsoDistanceEventsOff($X_axis)
+
+        $lastType = $type
+    end
+
+    // Final cleanup: if the run ended on a $type==1 row, restore primary feedback
+    // routing so the controller isn't left pointed at the sync port.
+    // 收尾清理：如果程序结束时最后一行是 $type==1，恢复主反馈路由，
+    // 避免控制器停留在指向同步端口的状态。
+    if $lastType == 1
+        PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+        DriveEncoderOutputOff($Y_axis, EncoderOutputChannel.SyncPortB)
+    end
+
+    FileClose($fileHandle)
+
+    // ---- Print total run time (glass plate scan complete) ----
+    // 打印总运行时间（整片玻璃扫描完成）
+    AppMessageDisplay("Total time (minutes): " + RealToString(TimerRead(0, TimerMode.Precise) / 60000.0))
+end

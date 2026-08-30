@@ -160,6 +160,9 @@ BOOL CSubDlgMain::OnInitDialog()
 	SetButtonBmp(IDC_BUTTON_CLEARALARMX,_T("refresh.png"));
 	SetButtonBmp(IDC_BUTTON_CLEARALARMY,_T("refresh.png"));
 
+	CheckDlgButton(IDC_CHECK_USBMODE, TRUE);
+	SendCmdMsg(IDC_CHECK_USBMODE);
+
 	LOGFONT lf;
 	GetFont()->GetLogFont(&lf);
 	_tccpy(lf.lfFaceName, _T("Î¢ÈíÑÅºÚ"));
@@ -265,11 +268,17 @@ int CSubDlgMain::OnSimpleThreadLoopRun(int nID)
 				CString strUser = GetDlgItemTextEx(IDC_EDIT_USER);
 				CString strPWd = GetDlgItemTextEx(IDC_EDIT_PWORD);
 				CString strIP = GetDlgItemTextEx(IDC_EDIT_HOSTIP);
-				BOOL bRet = Automation1_ConnectWithHostAndUser(CW2A(strIP), CW2A(strUser), CW2A(strPWd), &controller);
+
+				BOOL bRet = FALSE;
+				if(IsDlgButtonChecked(IDC_CHECK_USBMODE))
+					bRet = Automation1_ConnectWithUsb(&controller);
+				else
+					bRet = Automation1_ConnectWithHostAndUser(CW2A(strIP), CW2A(strUser), CW2A(strPWd), &controller);
 				if (bRet)
 				{
 					//Automation1_Controller_Start(controller);
-					if (!Automation1_Task_CallbackRegister(controller, 1, 1, taskCallback)) {
+					if (!Automation1_Task_CallbackRegister(controller, 1, 1, taskCallback))
+					{
 						TRACE("Automation1_Task_CallbackRegister FAILED\n");
 					}
 
@@ -406,6 +415,18 @@ BOOL CSubDlgMain::OnCommand(WPARAM wParam, LPARAM lParam)
 	{
 	case IDC_CHECK_CONNECT:
 		SimpleFire(0);
+		break;
+
+	case IDC_CHECK_USBMODE:
+	{
+		BOOL bHide = !IsDlgButtonChecked(IDC_CHECK_USBMODE);
+		SetDlgItemVisible(IDC_STATIC_H0, bHide);
+		SetDlgItemVisible(IDC_STATIC_H1, bHide);
+		SetDlgItemVisible(IDC_STATIC_H2, bHide);
+		SetDlgItemVisible(IDC_EDIT_HOSTIP, bHide);
+		SetDlgItemVisible(IDC_EDIT_USER, bHide);
+		SetDlgItemVisible(IDC_EDIT_PWORD, bHide);
+	}
 		break;
 
 	case IDC_CHECK_RUN:
@@ -606,6 +627,7 @@ BOOL CSubDlgMain::StartTask()
 
 	return true;
 }
+
 BOOL CSubDlgMain::RunTask(LPCTSTR lpszTaskName, LPCTSTR lpszScriptFile,int nTaskId)
 {
 	if (!controller)

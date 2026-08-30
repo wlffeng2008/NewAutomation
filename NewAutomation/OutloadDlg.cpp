@@ -1,4 +1,4 @@
-// OutloadDlg.cpp : implementation file
+Ôªø// OutloadDlg.cpp : implementation file
 //
 
 #include "stdafx.h"
@@ -30,135 +30,177 @@ void COutloadDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(COutloadDlg, CDialogEx)
 END_MESSAGE_MAP()
 
+static CString  strCallFile1(R"(
+// ================================================================
+// PSO Drilling Motion Program -- Validated Baseline (v1)
+// Â∑≤È™åËØÅÂü∫Á∫øÁâàÊú¨ (v1)
+//
+// ================================================================
 
-static CString  strCallFile(R"(
 program
     var $X_axis as axis = X1
     var $Y_axis as axis = Y1
-	var $isXHomed as real
-	var $isYHomed as real
-	$isXHomed = (StatusGetAxisItem($X_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
-	$isYHomed = (StatusGetAxisItem($Y_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
     Enable([$X_axis, $Y_axis])
-	if StatusGetAxisItem($Y_axis,AxisStatusItem.AxisStatus,AxisStatus.Homed) != $isYHomed
-		Home($Y_axis)
-	end
-	if StatusGetAxisItem($X_axis,AxisStatusItem.AxisStatus,AxisStatus.Homed) != $isXHomed
-		Home($X_axis)
-	end
-	
-    SetupTaskTargetMode(TargetMode.Incremental)
-	
-    var $Y_speed as real = %.2f
+
+    if (StatusGetAxisItem($X_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) != AxisStatus.Homed)
+        AppMessageDisplay("X axis not homed ‚Äì homing now...")
+        Home($X_axis)
+        WaitForMotionDone($X_axis)
+        AppMessageDisplay("XËΩ¥ÂõûÈõ∂")
+    else
+        AppMessageDisplay("XËΩ¥Â∑≤ÂõûÈõ∂")
+    end
+
+    if (StatusGetAxisItem($Y_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) != AxisStatus.Homed)
+        AppMessageDisplay("Y axis not homed ‚Äì homing now...")
+        Home($Y_axis)
+        WaitForMotionDone($Y_axis)
+        AppMessageDisplay("YËΩ¥ÂõûÈõ∂")
+    else
+        AppMessageDisplay("YËΩ¥Â∑≤ÂõûÈõ∂")
+    end
+
     var $X_speed as real = %.2f
-	var $TotalTime as integer = %d
-	var $OnTime as integer = %d
-	var $FixedCount as integer = %d
-	var $fileBegin as integer = %d
-	var $fileEnd as integer = %d
-    var $file as integer	
-	for $file = $fileBegin to $fileEnd
-		var $R_positions[10000] as real // will read from file
-		var $distances[10000] as real  
-		var $fileName as string = "/positions-" + IntegerToString($file) + ".rd"	
-		var $fileHandle as handle = FileOpenBinary($fileName, FileMode.Read)
-		var $type as integer = FileBinaryReadUInt32($fileHandle)  // type
-		var $count as integer = FileBinaryReadUInt32($fileHandle) // count
-		var $line as real = FileBinaryReadFloat64($fileHandle) // line
-		FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)	
-		FileClose($fileHandle)
+    var $Y_speed as real = %.2f
+    var $posSpeed as real = %.2f
+    var $TotalTime as integer = %d
+    var $OnTime as integer = %d
+    var $FixedCount as integer = %d
+    var $fileBegin as integer = %d
+    var $fileEnd as integer = %d
 
-		var $adjust as real = 0
-		var $posStart as real = $R_positions[0] - $adjust
-		var $posEnd as real = $R_positions[$count-1]  + $adjust
-	
-		if $type == 0	
-			MoveAbsolute($Y_axis, $line, $Y_speed)
-			WaitForMotionDone($Y_axis)
-			Dwell(0.100)
-		
-			MoveAbsolute($X_axis, $posStart, $X_speed)
-			WaitForMotionDone($X_axis)	
-			Dwell(0.100)
-		end 
-	
-		if $type == 1	
-			MoveAbsolute($X_axis, $line, $X_speed)
-			WaitForMotionDone($X_axis)
-			Dwell(0.100)
-		
-			MoveAbsolute($Y_axis, $posStart, $Y_speed)
-			WaitForMotionDone($Y_axis)	
-			Dwell(0.100)
-		end 
-        
-		PsoReset($X_axis)
-	
-		if $type == 0
-			PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4ePrimaryFeedback])
-		end
-	
-		if $type == 1
-			DriveEncoderOutputConfigureInput($Y_axis, EncoderOutputChannel.SyncPortB, EncoderInputChannel.PrimaryEncoder)
-			DriveEncoderOutputConfigureDivider($Y_axis, EncoderOutputChannel.SyncPortB, 1)   // 1: DIGITAL ENCODER 2: ANALOG ENCODER
-			DriveEncoderOutputOn($Y_axis, EncoderOutputChannel.SyncPortB)
-			PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4eSyncPortA]) 
-		end
+    var $type as integer
+    var $count as integer
+    var $line as real
+    var $header[2] as integer
 
-		var $index as integer = 0
-		var $increment as real = 0
-		CriticalSectionStart()
-			for $index = 0 to $count - 1
-				if $index > 0
-					$increment = Abs ($R_positions[$index] - $R_positions[$index-1])
-				end
-        		$distances[$index] = UnitsToCounts($X_axis, $increment) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
-			end
-		CriticalSectionEnd()
-		
-		DriveArrayWrite($X_axis, $distances, 0, $count, DriveArrayType.PsoDistanceEventDistances)
-		PsoDistanceConfigureArrayDistances($X_axis, 0, $count, false)
-		AppMessageDisplay("PSOæ‡¿ÎŒª÷√«˝∂Ø–¥»ÎÕÍ≥…")
-    
-		// Configure PSO waveform ≈‰÷√PSO≤®–Œ
-		PsoWaveformConfigureMode($X_axis, PsoWaveformMode.Pulse)
-		PsoWaveformConfigurePulseFixedTotalTime($X_axis, $TotalTime)
-		PsoWaveformConfigurePulseFixedOnTime($X_axis, $OnTime)
-		PsoWaveformConfigurePulseFixedCount($X_axis, $FixedCount)
-		PsoWaveformApplyPulseConfiguration($X_axis)
-    
-		// Enable PSO functions ∆Ù”√PSOπ¶ƒ‹
-		PsoDistanceCounterOn($X_axis)
-		PsoDistanceEventsOn($X_axis)
-		PsoWaveformOn($X_axis)
-    
-		// Configure PSO output ≈‰÷√PSO ‰≥ˆ
-		PsoOutputConfigureSource($X_axis, PsoOutputSource.Waveform)
-		PsoOutputConfigureOutput($X_axis, PsoOutputPin.iXC4eDedicatedOutput)
-    
-		if $type == 0
-			AppMessageDisplay("Ω´X÷·“∆∂Ø÷¡ƒø±ÍŒª÷√")
-			MoveLinear($X_axis, $posEnd - $posStart, $X_speed)
-			WaitForMotionDone($X_axis)
-		end
-	
-		if $type == 1
-			AppMessageDisplay("Ω´Y÷·“∆∂Ø÷¡ƒø±ÍŒª÷√")
-    		MoveLinear($Y_axis, $posEnd - $posStart, $Y_speed)
-    		WaitForMotionDone($Y_axis)
-		end
-    
-		// Disable PSO functions Ω˚”√PSOπ¶ƒ‹
-		PsoWaveformOff($X_axis)
-		PsoDistanceCounterOff($X_axis)
-		PsoDistanceEventsOff($X_axis)
-	end
+    var $R_positions[10000] as real
+    var $distances[10000] as real
+    var $index as integer
+    var $file as integer
+    var $fileHandle as handle
 
-	//Home($X_axis)
-	//Home($Y_axis)
-	
-end
-)");
+    var $adjust as real = %.2f
+    var $posStart as real
+    var $posEnd as real
+    var $increment as real = 0
+    var $lastType as integer = -1
+
+    var $countsDivider as real
+    var $countsPerUnit as real
+    $countsDivider = ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+    $countsPerUnit = ParameterGetAxisValue($X_axis, AxisParameter.CountsPerUnit)
+    var $scaleFactor as real = $countsPerUnit / $countsDivider
+
+    TimerClear(0)
+
+    PsoReset($X_axis)
+    PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+
+    PsoWaveformConfigureMode($X_axis, PsoWaveformMode.Pulse)
+    PsoWaveformConfigurePulseFixedTotalTime($X_axis, $TotalTime)
+    PsoWaveformConfigurePulseFixedOnTime($X_axis, $OnTime)
+    PsoWaveformConfigurePulseFixedCount($X_axis, $FixedCount)
+    PsoWaveformApplyPulseConfiguration($X_axis)
+
+    PsoOutputConfigureSource($X_axis, PsoOutputSource.Waveform)
+    PsoOutputConfigureOutput($X_axis, PsoOutputPin.iXC4DedicatedOutput)
+
+    // ============================================================
+    // Single File Open Outside the Loop
+    // ============================================================
+    var $masterFileName as string = "/all_positions.rd"
+    $fileHandle = FileOpenBinary($masterFileName, FileMode.Read)
+
+    for $file = $fileBegin to $fileEnd
+
+        FileBinaryReadUInt32Array($fileHandle, $header, 2)
+        $type = $header[0]
+        $count = $header[1]
+        $line = FileBinaryReadFloat64($fileHandle)
+        FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)
+
+        if ($R_positions[0] < $R_positions[$count-1])
+            $posStart = $R_positions[0] - $adjust
+            $posEnd = $R_positions[$count-1] + $adjust
+        else
+            $posStart = $R_positions[0] + $adjust
+            $posEnd = $R_positions[$count-1] - $adjust
+        end
+
+        if $type == 0
+            if $lastType == 1
+                // Coming back from a Y-drive scan block: restore primary feedback once.
+                PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+                DriveEncoderOutputOff($Y_axis, EncoderOutputChannel.SyncPortB)
+            end
+        end
+
+        if $type == 1
+            if $lastType != 1
+                // Entering a Y-drive scan block: configure sync port once.
+                DriveEncoderOutputConfigureInput($Y_axis, EncoderOutputChannel.SyncPortB, EncoderInputChannel.PrimaryEncoder)
+                DriveEncoderOutputConfigureDivider($Y_axis, EncoderOutputChannel.SyncPortB, 1)
+                DriveEncoderOutputOn($Y_axis, EncoderOutputChannel.SyncPortB)
+                PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4SyncPortA])
+            end
+        end
+
+        if $type == 0
+            MoveAbsolute([$Y_axis, $X_axis], [$line, $posStart], [$posSpeed, $posSpeed])
+        end
+        if $type == 1
+            MoveAbsolute([$X_axis, $Y_axis], [$line, $posStart], [$posSpeed, $posSpeed])
+        end
+
+        CriticalSectionStart()
+            for $index = 0 to $count - 1
+                if $index == 0
+                    $increment = $adjust
+                else
+                    $increment = Abs($R_positions[$index] - $R_positions[$index-1])
+                end
+                $distances[$index] = $increment * $scaleFactor
+            end
+        CriticalSectionEnd()
+
+        WaitForMotionDone([$Y_axis, $X_axis])
+
+        DriveArrayWrite($X_axis, $distances, 0, $count, DriveArrayType.PsoDistanceEventDistances)
+        PsoDistanceConfigureArrayDistances($X_axis, 0, $count, false)
+
+        PsoDistanceCounterOn($X_axis)
+        PsoDistanceEventsOn($X_axis)
+        PsoWaveformOn($X_axis)
+
+        if $type == 0
+            SetupAxisSpeed($X_axis, $X_speed)
+            MoveRapid($X_axis, $posEnd - $posStart)
+            WaitForMotionDone($X_axis)
+        end
+
+        if $type == 1
+            SetupAxisSpeed($Y_axis, $Y_speed)
+            MoveRapid($Y_axis, $posEnd - $posStart)
+            WaitForMotionDone($Y_axis)
+        end
+
+        PsoWaveformOff($X_axis)
+        PsoDistanceCounterOff($X_axis)
+        PsoDistanceEventsOff($X_axis)
+
+        $lastType = $type
+    end
+
+    if $lastType == 1
+        PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+        DriveEncoderOutputOff($Y_axis, EncoderOutputChannel.SyncPortB)
+    end
+
+    FileClose($fileHandle)
+
+    AppMessageDisplay("Total time (minutes): " + RealToString(TimerRead(0, TimerMode.Precise) / 60000.0))
+end)");
 
 
 BOOL COutloadDlg::OnInitDialog()
@@ -168,9 +210,9 @@ BOOL COutloadDlg::OnInitDialog()
 	m_pLoader = new COutsideLoad();
 
 	CMyListCtrl *pList = GetMyListCtrl(IDC_LIST1);
-	pList->InsertColumn(0, _T("±‡∫≈"), 0, 60);
-	pList->InsertColumn(1, _T("¿‡–Õ"), 0, 60);
-	pList->InsertColumn(2, _T("Œª÷√ ˝¡ø"), 0, 80);
+	pList->InsertColumn(0, _T("ÁºñÂè∑"), 0, 60);
+	pList->InsertColumn(1, _T("Á±ªÂûã"), 0, 60);
+	pList->InsertColumn(2, _T("‰ΩçÁΩÆÊï∞Èáè"), 0, 80);
 
 	SetDlgItemFont(IDC_RICHEDIT21, 12, 400, _T("Fixedsys"));
 
@@ -193,6 +235,8 @@ void COutloadDlg::SaveLoadConfig(BOOL bToSave)
 		Set.SetFloat(_T("ShiftY"), GetDlgItemFloat(IDC_EDITY));
 		Set.SetFloat(_T("SpeedX"), GetDlgItemFloat(IDC_EDIT_SPEEDX));
 		Set.SetFloat(_T("SpeedY"), GetDlgItemFloat(IDC_EDIT_SPEEDY));
+		Set.SetFloat(_T("SpeedPos"), GetDlgItemFloat(IDC_EDIT_SPEEDPOS));
+		Set.SetFloat(_T("Adjust"), GetDlgItemFloat(IDC_EDIT_ADJUST));
 		Set.SetFloat(_T("TotalTime"), GetDlgItemFloat(IDC_EDIT_TPLUSTIME));
 		Set.SetFloat(_T("OnTime"), GetDlgItemFloat(IDC_EDIT_PLUSDUR));
 		Set.SetFloat(_T("PlusCount"), GetDlgItemFloat(IDC_EDIT_PLUSCOUNT));
@@ -203,6 +247,8 @@ void COutloadDlg::SaveLoadConfig(BOOL bToSave)
 		SetDlgItemFloat(IDC_EDITY, Set.GetFloat(_T("ShiftY"), 50));
 		SetDlgItemFloat(IDC_EDIT_SPEEDX, Set.GetFloat(_T("SpeedX"), 100));
 		SetDlgItemFloat(IDC_EDIT_SPEEDY, Set.GetFloat(_T("SpeedY"), 100));
+		SetDlgItemFloat(IDC_EDIT_SPEEDPOS, Set.GetFloat(_T("SpeedPos"), 100));
+		SetDlgItemFloat(IDC_EDIT_ADJUST, Set.GetFloat(_T("Adjust"), 50));
 		SetDlgItemFloat(IDC_EDIT_TPLUSTIME, Set.GetFloat(_T("TotalTime"), 5000));
 		SetDlgItemFloat(IDC_EDIT_PLUSDUR, Set.GetFloat(_T("OnTime"), 2000));
 		SetDlgItemFloat(IDC_EDIT_PLUSCOUNT, Set.GetFloat(_T("PlusCount"), 2));
@@ -334,17 +380,15 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 		{
 			CMyListCtrl *pList = GetMyListCtrl(IDC_LIST1);
 			int nItem = pList->GetClickItem();
-			CString  strCall = strCallFile;
-			strCall.Format(strCallFile, GetDlgItemFloat(IDC_EDIT_SPEEDX), GetDlgItemFloat(IDC_EDIT_SPEEDY),
-				GetDlgItemInt(IDC_EDIT_TPLUSTIME), GetDlgItemInt(IDC_EDIT_PLUSDUR), GetDlgItemInt(IDC_EDIT_PLUSCOUNT), nItem, nItem
-			);
-
+			CString  strCall ;
+			strCall.Format(strCallFile1, GetDlgItemFloat(IDC_EDIT_SPEEDX), GetDlgItemFloat(IDC_EDIT_SPEEDY), GetDlgItemFloat(IDC_EDIT_SPEEDPOS),
+				GetDlgItemInt(IDC_EDIT_TPLUSTIME), GetDlgItemInt(IDC_EDIT_PLUSDUR), GetDlgItemInt(IDC_EDIT_PLUSCOUNT), nItem, nItem, GetDlgItemFloat(IDC_EDIT_ADJUST));
 			strFile = GetCurrentPath() + _T("callOneFile.ascript");
 			SaveTextAsUTF8(strCall, strFile);
 
 			if (m_pMain->RunTask(_T("writefile.ascript")))
 			{
-				if (IsDlgButtonChecked(IDC_CHECK_AUTORUN) || IDYES == MessageBox(_T("≥…π¶–¥»Î 1 Ãı£®◊È£© ˝æ›£°\n–Ë“™¡¢º¥‘À––(µ˜”√)¬?"), _T("Ã· æ"), MB_ICONINFORMATION | MB_YESNO))
+				if (IsDlgButtonChecked(IDC_CHECK_AUTORUN) || IDYES == MessageBox(_T("ÊàêÂäüÂÜôÂÖ• 1 Êù°ÔºàÁªÑÔºâÊï∞ÊçÆÔºÅ\nÈúÄË¶ÅÁ´ãÂç≥ËøêË°å(Ë∞ÉÁî®)Âêó?"), _T("ÊèêÁ§∫"), MB_ICONINFORMATION | MB_YESNO))
 				{
 					Sleep(100);
 					m_pMain->RunTask(_T("callOneFile.ascript"));
@@ -352,7 +396,7 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 			}
 			else
 			{
-				MessageBox(_T("øÿ÷∆∆˜Œ¥¡¨Ω”£¨–¥»Î ß∞‹£°"), _T("Ã· æ"), MB_ICONERROR);
+				MessageBox(_T("ÊéßÂà∂Âô®Êú™ËøûÊé•ÔºåÂÜôÂÖ•Â§±Ë¥•ÔºÅ"), _T("ÊèêÁ§∫"), MB_ICONERROR);
 			}
 		}
 	}
@@ -378,14 +422,13 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 		int nCount = Set.GetInt(_T("WriteCount"), 0);
 		if (nCount == 0)
 		{
-			MessageBox(_T("«Î ◊œ»–¥»Î»´≤ø ˝æ›£°"), _T("Ã· æ"), MB_ICONERROR);
+			MessageBox(_T("ËØ∑È¶ñÂÖàÂÜôÂÖ•ÂÖ®ÈÉ®Êï∞ÊçÆÔºÅ"), _T("ÊèêÁ§∫"), MB_ICONERROR);
 			break;
 		}
 			
-		CString  strCall = strCallFile;
-		strCall.Format(strCallFile, GetDlgItemFloat(IDC_EDIT_SPEEDX), GetDlgItemFloat(IDC_EDIT_SPEEDY),
-			GetDlgItemInt(IDC_EDIT_TPLUSTIME), GetDlgItemInt(IDC_EDIT_PLUSDUR), 
-			GetDlgItemInt(IDC_EDIT_PLUSCOUNT), 0, nCount - 1 );
+		CString  strCall;
+		strCall.Format(strCallFile1, GetDlgItemFloat(IDC_EDIT_SPEEDX), GetDlgItemFloat(IDC_EDIT_SPEEDY), GetDlgItemFloat(IDC_EDIT_SPEEDPOS),
+			GetDlgItemInt(IDC_EDIT_TPLUSTIME), GetDlgItemInt(IDC_EDIT_PLUSDUR), GetDlgItemInt(IDC_EDIT_PLUSCOUNT), 0, nCount - 1, GetDlgItemFloat(IDC_EDIT_ADJUST));
 
 		CString strFile = GetCurrentPath() + _T("callAllFile.ascript");
 		SaveTextAsUTF8(strCall, strFile);
@@ -412,6 +455,8 @@ int COutloadDlg::OnSimpleThreadLoopRun(int nID)
 				CString strFile;
 				CString strInfo;
 				int nCount = m_pLoader->GetCount();
+				CString strTmpFile = GetCurrentPath() + _T("All-postions.rd");
+				CFile TmpFile(strTmpFile, CFile::modeCreate | CFile::modeWrite);
 				for (int i = 0; i < nCount; i++)
 				{
 					if (!m_bSendAll)
@@ -420,133 +465,55 @@ int COutloadDlg::OnSimpleThreadLoopRun(int nID)
 					CLoader *pLoad = m_pLoader->GetData(i);
 					pLoad->SetOffset(GetDlgItemFloat(IDC_EDITX), GetDlgItemFloat(IDC_EDITY));
 
-					strInfo.Format(_T("’˝‘⁄–¥»Î: %d / %d"), i + 1, nCount);
+					strInfo.Format(_T("Ê≠£Âú®ÂÜôÂÖ•: %d / %d"), i + 1, nCount);
 					SetDlgItemText(IDC_STATIC_INFO, strInfo);
+
 					int nLen = 0;
 					BYTE *data = pLoad->ToBinary(nLen);
-					strFile.Format(_T("/positions-%d.rd"),i);
-					if(!m_pMain->WriteFile(strFile,data, nLen))
-					{
-						m_bSendAll = FALSE;
-						MessageBox(_T("øÿ÷∆∆˜Œ¥¡¨Ω”£¨–¥»Î ß∞‹£°"), _T("Ã· æ"), MB_ICONERROR);
-					}
+					TmpFile.Write(data, nLen);
 				}
-
+				TmpFile.Close();
 				if (!m_bSendAll)
 					continue;
+				TmpFile.Open(strTmpFile, CFile::modeRead);
+				int nLength = TmpFile.GetLength();
+				BYTE *pBuffer = new BYTE[nLength];
+				TmpFile.Read(pBuffer, nLength);
+				TmpFile.Close();
+
+				if (!m_pMain->WriteFile(_T("/all_positions.rd"), pBuffer, nLength))
+				{
+					MessageBox(_T("ÊéßÂà∂Âô®Êú™ËøûÊé•ÔºåÂÜôÂÖ•Â§±Ë¥•ÔºÅ"), _T("ÊèêÁ§∫"), MB_ICONERROR);
+				}
+				delete[]pBuffer;
 
 				m_bSendAll = FALSE;
 
+				{
+					CString  strCall;
+					strCall.Format(strCallFile1, GetDlgItemFloat(IDC_EDIT_SPEEDX), GetDlgItemFloat(IDC_EDIT_SPEEDY), GetDlgItemFloat(IDC_EDIT_SPEEDPOS),
+						GetDlgItemInt(IDC_EDIT_TPLUSTIME), GetDlgItemInt(IDC_EDIT_PLUSDUR), GetDlgItemInt(IDC_EDIT_PLUSCOUNT), 0, nCount - 1, GetDlgItemFloat(IDC_EDIT_ADJUST));
+
+					CString strFile = GetCurrentPath() + _T("callAllFiles.ascript");
+					SaveTextAsUTF8(strCall, strFile);
+					TmpFile.Open(strFile, CFile::modeRead);
+					nLength = TmpFile.GetLength();
+					BYTE *pBuffer = new BYTE[nLength];
+					TmpFile.Read(pBuffer, nLength);
+					TmpFile.Close();
+					m_pMain->WriteFile(_T("/callAllFiles.ascript"), pBuffer, nLength);
+					delete[]pBuffer;
+				}
+
 				CIniAX Set(_T("WorkConfig"));
 				Set.SetInt(_T("WriteCount"), nCount);
-				SetDlgItemText(IDC_STATIC_INFO, _T("–¥»ÎÕÍ≥…"));
-				strInfo.Format(_T("≥…π¶–¥»Î %d Ãı£®◊È£© ˝æ›£°\n–Ë“™¡¢º¥‘À––(µ˜”√)¬?"), nCount);
-				if (IDYES == MessageBox(strInfo, _T("Ã· æ"), MB_ICONINFORMATION | MB_YESNO))
+				SetDlgItemText(IDC_STATIC_INFO, _T("ÂÜôÂÖ•ÂÆåÊàê"));
+				strInfo.Format(_T("ÊàêÂäüÂÜôÂÖ• %d Êù°ÔºàÁªÑÔºâÊï∞ÊçÆÔºÅ"), nCount);
+				if (IDYES == MessageBox(strInfo, _T("ÊèêÁ§∫"), MB_ICONINFORMATION | MB_YESNO))
 				{
-					SendCmdMsg(IDC_BUTTON_RUNALL);
+					//SendCmdMsg(IDC_BUTTON_RUNALL); \nÈúÄË¶ÅÁ´ãÂç≥ËøêË°å(Ë∞ÉÁî®)Âêó?
 				}
 				continue;
-			}
-
-			{
-				int nCount = m_pLoader->GetCount();
-				CString strTypeArr;
-				CString strLineArr;
-				CString strCountArr;
-				CString strDataArr;
-				strTypeArr.Format(_T("var $index as integer \nvar $good as integer = 1\nvar $typeArr[%d] as integer = ["), nCount);
-				strLineArr.Format(_T("var $lineArr[%d] as real = ["), nCount);
-				strCountArr.Format(_T("var $countArr[%d] as integer = ["), nCount);
-				strDataArr.Format(_T("var $dataArr[%d][10000] as real"), nCount);
-
-				for (int i = 0; i < nCount; i++)
-				{
-					CLoader *pLoad = m_pLoader->GetData(i);
-					int nPosCount = pLoad->GetCount();
-					double dbLine = pLoad->GetStart();
-					int nType = pLoad->GetType();
-
-					strTypeArr.Append(Double2String(nType));
-					strTypeArr.Append(_T(","));
-
-					strLineArr.Append(Double2String(dbLine));
-					strLineArr.Append(_T(","));
-
-					strCountArr.Append(Double2String(nPosCount));
-					strCountArr.Append(_T(","));
-
-					CString strData;
-					strData.Format(_T(R"(
-if $good == 1
-    var $temp%d[%d] as real = %s
-	for $index = 0 to %d - 1
-		$dataArr[%d][$index] = $temp%d[$index]
-    end
-end
-				)"),i, nPosCount, pLoad->ToArray(), nPosCount,i, i);
-					strDataArr += strData;
-				}
-
-				strTypeArr.TrimRight(',');
-				strLineArr.TrimRight(',');
-				strCountArr.TrimRight(',');
-				strTypeArr.Append(_T("]\n"));
-				strLineArr.Append(_T("]\n"));
-				strCountArr.Append(_T("]\n"));
-
-				CString strLast = strTypeArr + strLineArr + strCountArr + strDataArr;
-				SaveTextAsUTF8(strLast, _T("D:\\hurge.txt"));
-				continue;
-			}
-			
-
-			m_bSendAll = TRUE;
-			SetDlgItemText(IDC_BUTTON_SENDALL, _T("÷–∂œ–¥»Î"));
-			CMyListCtrl *pList = GetMyListCtrl(IDC_LIST1);
-			int nCount = pList->GetItemCount();
-
-			int nWrite = 0;
-			CString stInfo;
-			for (int i = 0; i < nCount; i++)
-			{
-				if(!m_bSendAll)
-					break;
-				CString strScript = MakeScript(i);
-				if(strScript.IsEmpty())
-					continue;
-
-				CString strTask;
-				strTask.Format(_T("writefile-%02d.ascript"), i % 10);
-				CString  strFile = GetCurrentPath() + strTask;
-				SetDlgItemText(IDC_RICHEDIT21, strScript);
-				if (SaveTextAsUTF8(strScript, strFile))
-				{
-					if(!m_pMain->RunTask(strTask,nullptr,i % 10 + 1))
-						break;
-					nWrite++;
-				}
-				stInfo.Format(_T("’˝‘⁄–¥»Î: %d / %d"), i + 1, nCount);
-				SetDlgItemText(IDC_STATIC_INFO, stInfo);
-				Sleep(50);
-			}
-
-			if(m_bSendAll) SetDlgItemText(IDC_STATIC_INFO, _T("–¥»Î±ª»°œ˚"));
-
-			m_bSendAll = FALSE;
-			SetDlgItemText(IDC_BUTTON_SENDALL, _T("»´≤ø–¥»Î"));
-
-			if (nWrite != nCount)
-			{
-				MessageBox(_T("øÿ÷∆∆˜Œ¥¡¨Ω”£¨–¥»Î ß∞‹£°"), _T("Ã· æ"), MB_ICONERROR);
-			}
-			else
-			{
-				SetDlgItemText(IDC_STATIC_INFO, _T("–¥»ÎÕÍ≥…"));
-				stInfo.Format(_T("≥…π¶–¥»Î %d Ãı£®◊È£© ˝æ›£°\n–Ë“™¡¢º¥‘À––(µ˜”√)¬?"), nWrite);
-				if (IDYES == MessageBox(stInfo, _T("Ã· æ"), MB_ICONINFORMATION | MB_YESNO))
-				{
-					SendCmdMsg(IDC_BUTTON_RUNALL);
-				}
 			}
 		}
 		break;

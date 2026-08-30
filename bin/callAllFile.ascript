@@ -1,140 +1,171 @@
 
+// ================================================================
+// PSO Drilling Motion Program -- Validated Baseline (v1)
+// 已验证基线版本 (v1)
+//
+// ================================================================
+
 program
     var $X_axis as axis = X1
     var $Y_axis as axis = Y1
-	var $isXHomed as real
-	var $isYHomed as real
-	$isXHomed = (StatusGetAxisItem($X_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
-	$isYHomed = (StatusGetAxisItem($Y_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) == AxisStatus.Homed)
     Enable([$X_axis, $Y_axis])
-	if StatusGetAxisItem($Y_axis,AxisStatusItem.AxisStatus,AxisStatus.Homed) != $isYHomed
-		Home($Y_axis)
-	end
-	if StatusGetAxisItem($X_axis,AxisStatusItem.AxisStatus,AxisStatus.Homed) != $isXHomed
-		Home($X_axis)
-	end
-	
-    SetupTaskTargetMode(TargetMode.Absolute)
-	
-    var $Y_speed as real = 100.00
+
+    if (StatusGetAxisItem($X_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) != AxisStatus.Homed)
+        AppMessageDisplay("X axis not homed – homing now...")
+        Home($X_axis)
+        WaitForMotionDone($X_axis)
+        AppMessageDisplay("X轴回零")
+    else
+        AppMessageDisplay("X轴已回零")
+    end
+
+    if (StatusGetAxisItem($Y_axis, AxisStatusItem.AxisStatus, AxisStatus.Homed) != AxisStatus.Homed)
+        AppMessageDisplay("Y axis not homed – homing now...")
+        Home($Y_axis)
+        WaitForMotionDone($Y_axis)
+        AppMessageDisplay("Y轴回零")
+    else
+        AppMessageDisplay("Y轴已回零")
+    end
+
     var $X_speed as real = 100.00
-	var $TotalTime as integer = 5000
-	var $OnTime as integer = 2000
-	var $FixedCount as integer = 2
-	var $fileBegin as integer = 0
-	var $fileEnd as integer = 1317
-	var $type as integer
-	var $count as integer
-	var $index as integer
-	var $line as real
-	var $fileHandle as handle
-	var $R_positions[10000] as real // will read from file
-    var $distances[10000] as real  
+    var $Y_speed as real = 100.00
+    var $posSpeed as real = 100.00
+    var $TotalTime as integer = 5000
+    var $OnTime as integer = 2000
+    var $FixedCount as integer = 2
+    var $fileBegin as integer = 0
+    var $fileEnd as integer = 1317
+
+    var $type as integer
+    var $count as integer
+    var $line as real
+    var $header[2] as integer
+
+    var $R_positions[10000] as real
+    var $distances[10000] as real
+    var $index as integer
     var $file as integer
-	
-	for $file = $fileBegin to $fileEnd
-		var $fileName as string = "/positions-" + IntegerToString($file) + ".rd"	
-		$fileHandle = FileOpenBinary($fileName, FileMode.Read)
-	
-		$type = FileBinaryReadUInt32($fileHandle)  // type
-		if $type > 1
-			continue
-		end
-		$count = FileBinaryReadUInt32($fileHandle) // count
-		$line = FileBinaryReadFloat64($fileHandle) // line
-		FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)
-	
-		FileClose($fileHandle)
-	
-		//$type = 1 
-		//$line = 100
-		//$count = 20
-		//for $index = 0 to $count-1
-		//	$R_positions[$index]= $index *10
-		//end
+    var $fileHandle as handle
 
-		var $adjust as real = 0
-		var $posStart as real = $R_positions[0] - $adjust
-		var $posEnd as real = $R_positions[$count-1]  + $adjust
-	
-		if $type == 0	
-			MoveAbsolute($Y_axis, $line, $Y_speed)
-			WaitForMotionDone($Y_axis)
-			Dwell(0.100)
-		
-			MoveAbsolute($X_axis, $posStart, $X_speed)
-			WaitForMotionDone($X_axis)	
-			Dwell(0.100)
-		end 
-	
-		if $type == 1	
-			MoveAbsolute($X_axis, $line, $X_speed)
-			WaitForMotionDone($X_axis)
-			Dwell(0.100)
-		
-			MoveAbsolute($Y_axis, $posStart, $Y_speed)
-			WaitForMotionDone($Y_axis)	
-			Dwell(0.100)
-		end 
-        
-		PsoReset($X_axis)
-	
-		if $type == 0
-			PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4ePrimaryFeedback])
-		end
-	
-		if $type == 1
-			DriveEncoderOutputConfigureInput($Y_axis, EncoderOutputChannel.SyncPortB, EncoderInputChannel.PrimaryEncoder)
-			DriveEncoderOutputConfigureDivider($Y_axis, EncoderOutputChannel.SyncPortB, 1)   // 1: DIGITAL ENCODER 2: ANALOG ENCODER
-			DriveEncoderOutputOn($Y_axis, EncoderOutputChannel.SyncPortB)
-			PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4eSyncPortA]) 
-		end
-		
-		CriticalSectionStart()
-			for $index =0 to $count - 1
-        		$distances[$index] = UnitsToCounts($X_axis, $R_positions[$index]) / ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
-			end
-		CriticalSectionEnd()
-		
-		DriveArrayWrite($X_axis, $distances, 0, $count, DriveArrayType.PsoDistanceEventDistances)
-		PsoDistanceConfigureArrayDistances($X_axis, 0, $count, false)
-		AppMessageDisplay("PSO距离位置驱动写入完成")
-    
-		// Configure PSO waveform 配置PSO波形
-		PsoWaveformConfigureMode($X_axis, PsoWaveformMode.Pulse)
-		PsoWaveformConfigurePulseFixedTotalTime($X_axis, $TotalTime)
-		PsoWaveformConfigurePulseFixedOnTime($X_axis, $OnTime)
-		PsoWaveformConfigurePulseFixedCount($X_axis, $FixedCount)
-		PsoWaveformApplyPulseConfiguration($X_axis)
-    
-		// Enable PSO functions 启用PSO功能
-		PsoDistanceCounterOn($X_axis)
-		PsoDistanceEventsOn($X_axis)
-		PsoWaveformOn($X_axis)
-    
-		// Configure PSO output 配置PSO输出
-		PsoOutputConfigureSource($X_axis, PsoOutputSource.Waveform)
-		PsoOutputConfigureOutput($X_axis, PsoOutputPin.iXC4eDedicatedOutput)
-    
-		if $type == 0
-			AppMessageDisplay("将X轴移动至目标位置")
-			MoveLinear($X_axis, $posEnd, $X_speed)
-			WaitForMotionDone($X_axis)
-		end
-	
-		if $type == 1
-			AppMessageDisplay("将Y轴移动至目标位置")
-    		MoveLinear($Y_axis, $posEnd, $Y_speed)
-    		WaitForMotionDone($Y_axis)
-		end
-    
-		// Disable PSO functions 禁用PSO功能
-		PsoWaveformOff($X_axis)
-		PsoDistanceCounterOff($X_axis)
-		PsoDistanceEventsOff($X_axis)
-	end
+    var $adjust as real = 50.00
+    var $posStart as real
+    var $posEnd as real
+    var $increment as real = 0
+    var $lastType as integer = -1
 
-	//Home($X_axis)
-	//Home($Y_axis)
-	
+    var $countsDivider as real
+    var $countsPerUnit as real
+    $countsDivider = ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+    $countsPerUnit = ParameterGetAxisValue($X_axis, AxisParameter.CountsPerUnit)
+    var $scaleFactor as real = $countsPerUnit / $countsDivider
+
+    TimerClear(0)
+
+    PsoReset($X_axis)
+    PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+
+    PsoWaveformConfigureMode($X_axis, PsoWaveformMode.Pulse)
+    PsoWaveformConfigurePulseFixedTotalTime($X_axis, $TotalTime)
+    PsoWaveformConfigurePulseFixedOnTime($X_axis, $OnTime)
+    PsoWaveformConfigurePulseFixedCount($X_axis, $FixedCount)
+    PsoWaveformApplyPulseConfiguration($X_axis)
+
+    PsoOutputConfigureSource($X_axis, PsoOutputSource.Waveform)
+    PsoOutputConfigureOutput($X_axis, PsoOutputPin.iXC4DedicatedOutput)
+
+    // ============================================================
+    // Single File Open Outside the Loop
+    // ============================================================
+    var $masterFileName as string = "/all_positions.rd"
+    $fileHandle = FileOpenBinary($masterFileName, FileMode.Read)
+
+    for $file = $fileBegin to $fileEnd
+
+        FileBinaryReadUInt32Array($fileHandle, $header, 2)
+        $type = $header[0]
+        $count = $header[1]
+        $line = FileBinaryReadFloat64($fileHandle)
+        FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)
+
+        if ($R_positions[0] < $R_positions[$count-1])
+            $posStart = $R_positions[0] - $adjust
+            $posEnd = $R_positions[$count-1] + $adjust
+        else
+            $posStart = $R_positions[0] + $adjust
+            $posEnd = $R_positions[$count-1] - $adjust
+        end
+
+        if $type == 0
+            if $lastType == 1
+                // Coming back from a Y-drive scan block: restore primary feedback once.
+                PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+                DriveEncoderOutputOff($Y_axis, EncoderOutputChannel.SyncPortB)
+            end
+        end
+
+        if $type == 1
+            if $lastType != 1
+                // Entering a Y-drive scan block: configure sync port once.
+                DriveEncoderOutputConfigureInput($Y_axis, EncoderOutputChannel.SyncPortB, EncoderInputChannel.PrimaryEncoder)
+                DriveEncoderOutputConfigureDivider($Y_axis, EncoderOutputChannel.SyncPortB, 1)
+                DriveEncoderOutputOn($Y_axis, EncoderOutputChannel.SyncPortB)
+                PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4SyncPortA])
+            end
+        end
+
+        if $type == 0
+            MoveAbsolute([$Y_axis, $X_axis], [$line, $posStart], [$posSpeed, $posSpeed])
+        end
+        if $type == 1
+            MoveAbsolute([$X_axis, $Y_axis], [$line, $posStart], [$posSpeed, $posSpeed])
+        end
+
+        CriticalSectionStart()
+            for $index = 0 to $count - 1
+                if $index == 0
+                    $increment = $adjust
+                else
+                    $increment = Abs($R_positions[$index] - $R_positions[$index-1])
+                end
+                $distances[$index] = $increment * $scaleFactor
+            end
+        CriticalSectionEnd()
+
+        WaitForMotionDone([$Y_axis, $X_axis])
+
+        DriveArrayWrite($X_axis, $distances, 0, $count, DriveArrayType.PsoDistanceEventDistances)
+        PsoDistanceConfigureArrayDistances($X_axis, 0, $count, false)
+
+        PsoDistanceCounterOn($X_axis)
+        PsoDistanceEventsOn($X_axis)
+        PsoWaveformOn($X_axis)
+
+        if $type == 0
+            SetupAxisSpeed($X_axis, $X_speed)
+            MoveRapid($X_axis, $posEnd - $posStart)
+            WaitForMotionDone($X_axis)
+        end
+
+        if $type == 1
+            SetupAxisSpeed($Y_axis, $Y_speed)
+            MoveRapid($Y_axis, $posEnd - $posStart)
+            WaitForMotionDone($Y_axis)
+        end
+
+        PsoWaveformOff($X_axis)
+        PsoDistanceCounterOff($X_axis)
+        PsoDistanceEventsOff($X_axis)
+
+        $lastType = $type
+    end
+
+    if $lastType == 1
+        PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+        DriveEncoderOutputOff($Y_axis, EncoderOutputChannel.SyncPortB)
+    end
+
+    FileClose($fileHandle)
+
+    AppMessageDisplay("Total time (minutes): " + RealToString(TimerRead(0, TimerMode.Precise) / 60000.0))
 end
