@@ -245,7 +245,6 @@ HCURSOR CNewAutomationDlg::OnQueryDragIcon()
 
 void CNewAutomationDlg::OnTimer(UINT_PTR nIDEvent)
 {
-
 	CDialogEx::OnTimer(nIDEvent);
 }
 

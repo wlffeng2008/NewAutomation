@@ -28,6 +28,7 @@ void COutloadDlg::DoDataExchange(CDataExchange* pDX)
 
 
 BEGIN_MESSAGE_MAP(COutloadDlg, CDialogEx)
+	ON_BN_CLICKED(IDC_BUTTON_RUNALL, &COutloadDlg::OnBnClickedButtonRunall)
 END_MESSAGE_MAP()
 
 static CString  strCallFile1(R"(
@@ -387,7 +388,6 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 	break;
 
 	case IDC_BUTTON_SENDALL:
-	{
 		if (m_bSendAll)
 		{
 			m_bSendAll = FALSE;
@@ -395,11 +395,15 @@ BOOL COutloadDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 		}
 		SimpleFire(0);
 		break;
-	}
 
 	case IDC_BUTTON_STOP:
 		m_pMain->StopTask();
 		break;
+
+	case IDC_CHECK_PAUSE:
+		m_pMain->PauseTask(IsDlgButtonChecked(IDC_CHECK_PAUSE));
+		break;
+
 	case IDC_BUTTON_RUNALL:
 	{
 		CIniAX Set(_T("WorkConfig"));
@@ -505,4 +509,10 @@ int COutloadDlg::OnSimpleThreadLoopRun(int nID)
 		break;
 	}
 	return 0;
+}
+
+
+void COutloadDlg::OnBnClickedButtonRunall()
+{
+	// TODO: Add your control notification handler code here
 }

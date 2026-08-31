@@ -605,12 +605,23 @@ BOOL CSubDlgMain::StopTask()
 {
 	if (!controller)
 		return FALSE;
-	if (IsDlgButtonChecked(IDC_CHECK_RUN))
-	{
-		CheckDlgButton(IDC_CHECK_RUN, FALSE);
-		SendCmdMsg(IDC_CHECK_RUN);
-	}
 
+	m_bPause = false;
+	Automation1_Task_ProgramStop(controller,1,100);
+
+	return true;
+}
+
+
+BOOL CSubDlgMain::PauseTask(BOOL bPause)
+{
+	if (!controller)
+		return FALSE;
+	if(bPause)
+		Automation1_Task_ProgramPause(controller, 1, 100);
+	else
+		Automation1_Task_ProgramStart(controller, 1);
+	m_bPause = bPause;
 	return true;
 }
 
@@ -618,6 +629,8 @@ BOOL CSubDlgMain::StartTask()
 {
 	if (!controller)
 		return FALSE;
+
+	m_bPause = false;
 	if (!IsDlgButtonChecked(IDC_CHECK_RUN))
 	{
 		CheckDlgButton(IDC_CHECK_RUN, true);
@@ -648,7 +661,7 @@ BOOL CSubDlgMain::RunTask(LPCTSTR lpszTaskName, LPCTSTR lpszScriptFile,int nTask
 		if (strFile.Find(_T(":")) <= 0)
 			strFile = GetCurrentPath() + lpszScriptFile;
 	}
-
+	m_bPause = FALSE;
 	Automation1_Task_ProgramStop(controller, nTaskId, 100);
 	Automation1_Files_Upload(controller, CW2A(strFile), szName);
 	Automation1_Task_ProgramLoad(controller, nTaskId, szName);

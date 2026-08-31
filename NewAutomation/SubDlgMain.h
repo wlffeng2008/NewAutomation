@@ -17,9 +17,10 @@ public:
 	double m_dbYPos = 0;
 
 	CDlgPSOEdit *m_pDlgPSO=nullptr;
-
+	BOOL m_bPause = FALSE;
 	int OnSimpleThreadLoopRun(int nID);
 	BOOL StopTask();
+	BOOL PauseTask(BOOL bPause);
 	BOOL StartTask();
 	BOOL RunTask(LPCTSTR lpszTaskName,LPCTSTR lpszScriptFile=nullptr,int nTaskId=1);
 	BOOL WriteFile(LPCTSTR lpszFileName ,void *data, int nLen);
