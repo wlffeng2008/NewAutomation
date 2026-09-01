@@ -106,7 +106,7 @@ BOOL CNewAutomationDlg::OnInitDialog()
 	SetSkinsPath(_T("/images/"));
 
 	int v0, v1, v2;
-	Automation1_GetApiVersion(&v0, &v1, &v2);
+	Automation1_GetApiVersion(&v0, &v1, &v2); 
 	
 	CString strTxt;
 	strTxt.Format(_T("AeroTech Automation: V%d.%d.%d  -- Брвы: %s"), v0, v1, v2 ,FormatTM(TimestampToTime(CA2W(__TIMESTAMP__))));

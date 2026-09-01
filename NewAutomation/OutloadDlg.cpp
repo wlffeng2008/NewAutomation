@@ -32,6 +32,163 @@ BEGIN_MESSAGE_MAP(COutloadDlg, CDialogEx)
 END_MESSAGE_MAP()
 
 static CString  strCallFile1(R"(
+
+// ================================================================
+// PSO Drilling Motion Program -- Validated Baseline (v1)
+// 已验证基线版本 (v1)
+//
+// ================================================================
+
+program
+    var $X_axis as axis = X1
+    var $Y_axis as axis = Y1
+    Enable([$X_axis, $Y_axis])
+	Home([$X_axis, $Y_axis])
+	WaitForMotionDone([$X_axis, $Y_axis])
+
+    var $X_speed as real = %.2f
+    var $Y_speed as real = %.2f
+    var $posSpeed as real = %.2f
+    var $TotalTime as integer = %d
+    var $OnTime as integer = %d
+    var $FixedCount as integer = %d
+    var $fileBegin as integer = %d
+    var $fileEnd as integer = %d
+
+    var $type as integer
+    var $count as integer
+    var $line as real
+    var $header[2] as integer
+
+    var $R_positions[10000] as real
+    var $distances[10000] as real
+    var $index as integer
+    var $file as integer
+    var $fileHandle as handle
+
+    var $adjust as real = %.2f
+    var $posStart as real
+    var $posEnd as real
+    var $increment as real = 0
+    var $lastType as integer = -1
+
+    var $countsDivider as real
+    var $countsPerUnit as real
+    $countsDivider = ParameterGetAxisValue($X_axis, AxisParameter.PrimaryEmulatedQuadratureDivider)
+    $countsPerUnit = ParameterGetAxisValue($X_axis, AxisParameter.CountsPerUnit)
+    var $scaleFactor as real = $countsPerUnit / $countsDivider
+
+    TimerClear(0)
+
+    PsoReset($X_axis)
+    PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+
+    PsoWaveformConfigureMode($X_axis, PsoWaveformMode.Pulse)
+    PsoWaveformConfigurePulseFixedTotalTime($X_axis, $TotalTime)
+    PsoWaveformConfigurePulseFixedOnTime($X_axis, $OnTime)
+    PsoWaveformConfigurePulseFixedCount($X_axis, $FixedCount)
+    PsoWaveformApplyPulseConfiguration($X_axis)
+
+    PsoOutputConfigureSource($X_axis, PsoOutputSource.Waveform)
+    PsoOutputConfigureOutput($X_axis, PsoOutputPin.iXC4DedicatedOutput)
+
+    // ============================================================
+    // Single File Open Outside the Loop
+    // ============================================================
+    var $masterFileName as string = "/all_positions.rd"
+    $fileHandle = FileOpenBinary($masterFileName, FileMode.Read)
+
+    for $file = $fileBegin to $fileEnd
+
+        FileBinaryReadUInt32Array($fileHandle, $header, 2)
+        $type = $header[0]
+        $count = $header[1]
+        $line = FileBinaryReadFloat64($fileHandle)
+        FileBinaryReadFloat64Array($fileHandle, $R_positions, $count)
+
+        if ($R_positions[0] < $R_positions[$count-1])
+            $posStart = $R_positions[0] - $adjust
+            $posEnd = $R_positions[$count-1] + $adjust
+        else
+            $posStart = $R_positions[0] + $adjust
+            $posEnd = $R_positions[$count-1] - $adjust
+        end
+
+        if $type == 0
+            if $lastType == 1
+                // Coming back from a Y-drive scan block: restore primary feedback once.
+                PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+                DriveEncoderOutputOff($Y_axis, EncoderOutputChannel.SyncPortB)
+            end
+        end
+
+        if $type == 1
+            if $lastType != 1
+                // Entering a Y-drive scan block: configure sync port once.
+                DriveEncoderOutputConfigureInput($Y_axis, EncoderOutputChannel.SyncPortB, EncoderInputChannel.PrimaryEncoder)
+                DriveEncoderOutputConfigureDivider($Y_axis, EncoderOutputChannel.SyncPortB, 1)
+                DriveEncoderOutputOn($Y_axis, EncoderOutputChannel.SyncPortB)
+                PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4SyncPortA])
+            end
+        end
+
+        if $type == 0
+            MoveAbsolute([$Y_axis, $X_axis], [$line, $posStart], [$posSpeed, $posSpeed])
+        end
+        if $type == 1
+            MoveAbsolute([$X_axis, $Y_axis], [$line, $posStart], [$posSpeed, $posSpeed])
+        end
+
+        CriticalSectionStart()
+            for $index = 0 to $count - 1
+                if $index == 0
+                    $increment = $adjust
+                else
+                    $increment = Abs($R_positions[$index] - $R_positions[$index-1])
+                end
+                $distances[$index] = $increment * $scaleFactor
+            end
+        CriticalSectionEnd()
+
+        WaitForMotionDone([$Y_axis, $X_axis])
+
+        DriveArrayWrite($X_axis, $distances, 0, $count, DriveArrayType.PsoDistanceEventDistances)
+        PsoDistanceConfigureArrayDistances($X_axis, 0, $count, false)
+
+        PsoDistanceCounterOn($X_axis)
+        PsoDistanceEventsOn($X_axis)
+        PsoWaveformOn($X_axis)
+
+        if $type == 0
+            SetupAxisSpeed($X_axis, $X_speed)
+            MoveRapid($X_axis, $posEnd) // MoveRapid($X_axis, $posEnd - $posStart)
+            WaitForMotionDone($X_axis)
+        end
+
+        if $type == 1
+            SetupAxisSpeed($Y_axis, $Y_speed)
+            MoveRapid($Y_axis, $posEnd)  // MoveRapid($Y_axis, $posEnd - $posStart)
+            WaitForMotionDone($Y_axis)
+        end
+
+        PsoWaveformOff($X_axis)
+        PsoDistanceCounterOff($X_axis)
+        PsoDistanceEventsOff($X_axis)
+
+        $lastType = $type
+    end
+
+    if $lastType == 1
+        PsoDistanceConfigureInputs($X_axis, [PsoDistanceInput.iXC4PrimaryFeedback])
+        DriveEncoderOutputOff($Y_axis, EncoderOutputChannel.SyncPortB)
+    end
+
+    FileClose($fileHandle)
+
+    AppMessageDisplay("Total time (minutes): " + RealToString(TimerRead(0, TimerMode.Precise) / 60000.0))
+end
+)");
+static CString  strCallFileOld(R"(
 // ================================================================
 // PSO Drilling Motion Program -- Validated Baseline (v1)
 // 已验证基线版本 (v1)
